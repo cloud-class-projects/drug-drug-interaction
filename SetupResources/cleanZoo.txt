@@ -1,0 +1,1 @@
+0 3 * * * zookeeper-3.4.6/bin/zkCleanup.sh /var/zookeeper/ -n 3
