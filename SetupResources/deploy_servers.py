@@ -56,7 +56,7 @@ def collectAndSetIPAddresses(serverIds):
     return(serverIps, serverPublicIps)
 #time.sleep(30)
 def buildHostString( serverIps, vmNames):
-    print('Building Hosts String'):
+    print('Building Hosts String')
     hostString = '#hadoop \n'
     for i in range(numStart):
         print(i)
@@ -95,8 +95,10 @@ def deleteServers():
 #        
 #        #transports.append(tscon)
 #    #return(transports)
-vmNames = ['ibwood_205', 'ibwood_206', 'ibwood_207']
-serverIps = collectIpAddresses(vmNames)
+#vmNames = ['ibwood_205', 'ibwood_206', 'ibwood_207']
+initializeMachines()
+serverIps = collectAndSetIpAddresses(vmNames)
+#serverIps = collectIpAddresses(vmNames)
 hostString = buildHostString(serverIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
@@ -147,7 +149,7 @@ def moveFilesAndSetupHadoop():
     for chan in chans:
         doneyet = False
         while not doneyet:
-            if chan.recv_ready()
+            if chan.recv_ready():
                 result = chan.recv(10e6)
                 if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\n\root':
                     doneyet = True
@@ -176,7 +178,7 @@ def moveFilesAndSetupHadoop():
     for chan in chans:
         doneyet = False
         while not doneyet:
-            if chan.recv_ready()
+            if chan.recv_ready():
                 result = chan.recv(10e6)
                 if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\n\root':
                     doneyet = True
