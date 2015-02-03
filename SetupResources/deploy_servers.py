@@ -4,7 +4,8 @@ import cloudmesh
 import time
 import paramiko as pm
 import socket
-
+#had to run manual commands, mongo.start, mongo.boot y, mongo.boot N, user.mongo, mongo.simple
+#changed key name to ibwood_ubuntu-key (so ibwood_ibwood_ubuntu-key)
 cloudmesh.shell("cloud on india")
 username = cloudmesh.load().username()
 mesh = cloudmesh.mesh("mongo")
@@ -124,11 +125,13 @@ def establishConnections():
         sf = transports[i].open_sftp_client()
         sftps.append(sf)
 def connectHosts():
-    for chan in chans:
+    for i in range(numStart):
+	    chan = chans[i]
         chan.send('sudo su \n')
         chan.send(addHostsCommand)
         chan.send('ssh-keygen -t rsa -P "" -f /root/.ssh/id_rsa\nn\n')
-        chan.send('cat /root/.ssh/id_rsa.pub >> /home/ubuntu/hadoop'+str(i+1) + '.pub\n')
+        chan.send('cat /root/.ssh/id_rsa.pub >> /home/ubuntu/hadoop'+str(i) + '.pub\n')
+        
     for i in range(numStart):
         sf = sftps[i]
         f = sf.open('hadoop'+str(i)+'.pub', 'r')
