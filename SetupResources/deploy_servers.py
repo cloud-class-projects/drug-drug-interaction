@@ -9,7 +9,7 @@ cloudmesh.shell("cloud on india")
 username = cloudmesh.load().username()
 mesh = cloudmesh.mesh("mongo")
 mesh.activate(username)
-
+mesh.refresh(username, types=['flavors', 'images'], names=['india'])
 image = 'futuregrid/ubuntu-14.04'
 flavor= 'm1.medium'
 cloud = 'india'
@@ -99,7 +99,7 @@ def deleteServers():
 #vmNames = ['ibwood_205', 'ibwood_206', 'ibwood_207']
 #serverIps = collectIpAddresses(vmNames)
 initializeMachines()
-serverIps = collectAndSetIpAddresses(vmNames)[0]
+serverIps = collectAndSetIPAddresses(serverIds)[0]
 hostString = buildHostString(serverIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
@@ -109,7 +109,7 @@ hkeys = []
 def establishConnections():
     for i in range(numStart):
         ip = serverIps[i]
-        pm.rsakey.RSAKey(filename='../.ssh/id_rsa')
+        pk=pm.rsakey.RSAKey(filename='../../.ssh/id_rsa')
         scon = socket.create_connection((ip, '22'))
         tscon = pm.transport.Transport(scon)
         tscon.connect(username='ubuntu', pkey=pk)
