@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import uuid
 import cloudmesh
 import time
@@ -10,7 +10,7 @@ cloudmesh.shell("cloud on india")
 username = cloudmesh.load().username()
 mesh = cloudmesh.mesh("mongo")
 mesh.activate(username)
-mesh.refresh(username, types=['flavors', 'images'], names=['india'])
+mesh.refresh(username, types=['flavors', 'images', 'servers'], names=['india'])
 image = 'futuregrid/ubuntu-14.04'
 flavor= 'm1.medium'
 cloud = 'india'
@@ -34,11 +34,17 @@ def initializeMachines():
     return(vmNames, serverIds)
 def collectIpAddresses(vmNames):
     ips = {}
-    for server in mesh.servers(clouds=['india'], cm_user_id=username)['india'].keys():
+    ids = {}
+    servers=mesh.servers(clouds=['india'], cm_user_id=username)['india']
+    for serverId in servers:
+        server = servers[serverId]
+        
         if server['name'] in vmNames:
             ips[server['name']]=server['addresses']['private'][0]['addr']
+            ids[server['name']] = serverId
     for name in vmNames:
         serverIps.append(ips[name])
+        serverIds.append(ids[name])
     return(serverIps)
 def collectAndSetIPAddresses(serverIds):
     print('Collecting IPs')
@@ -97,10 +103,10 @@ def deleteServers():
 #        
 #        #transports.append(tscon)
 #    #return(transports)
-#vmNames = ['ibwood_205', 'ibwood_206', 'ibwood_207']
-#serverIps = collectIpAddresses(vmNames)
-initializeMachines()
-serverIps = collectAndSetIPAddresses(serverIds)[0]
+vmNames = ['ibwood_5', 'ibwood_6', 'ibwood_7']
+serverIps = collectIpAddresses(vmNames)
+#initializeMachines()
+#serverIps = collectAndSetIPAddresses(serverIds)[0]
 hostString = buildHostString(serverIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
@@ -126,10 +132,11 @@ def establishConnections():
         sftps.append(sf)
 def connectHosts():
     for i in range(numStart):
-	    chan = chans[i]
+        chan = chans[i]
         chan.send('sudo su \n')
         chan.send(addHostsCommand)
         chan.send('ssh-keygen -t rsa -P "" -f /root/.ssh/id_rsa\nn\n')
+        time.sleep(5)
         chan.send('cat /root/.ssh/id_rsa.pub >> /home/ubuntu/hadoop'+str(i) + '.pub\n')
         
     for i in range(numStart):
@@ -140,8 +147,14 @@ def connectHosts():
         hkeys.append(hkey)
     for chan in chans:
         for hkey in hkeys:
-            chan.send('echo "%s" >> /root/.ssh/authorized_keys\n'%hkey)
-        chan.recv(10e6)
+            hkey = hkey[:-1]
+            #print('key: ' + str(hkey))
+            appendCommand = """echo "%s" >> /root/.ssh/authorized_keys \n"""%hkey
+            #chan.send("""echo "%s" >> /root/.ssh/authorized_keys \n\n"""%hkey)
+            chan.send(appendCommand)
+            #time.sleep(1)
+            result = chan.recv(10e6)
+            #print(result)
 def moveFilesAndSetupHadoop():
     for sf in sftps:
         sf.put('installChef.sh', 'installChef.sh')
@@ -155,7 +168,8 @@ def moveFilesAndSetupHadoop():
         while not doneyet:
             if chan.recv_ready():
                 result = chan.recv(10e6)
-                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\n\root':
+                print(result)
+                if result[result.rfind('@')-10:result.rfind('@')] == 'done\nroot':
                     doneyet = True
             else:
                 time.sleep(60)
