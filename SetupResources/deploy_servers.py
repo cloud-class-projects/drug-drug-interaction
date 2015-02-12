@@ -103,10 +103,10 @@ def deleteServers():
 #        
 #        #transports.append(tscon)
 #    #return(transports)
-vmNames = ['ibwood_5', 'ibwood_6', 'ibwood_7']
-serverIps = collectIpAddresses(vmNames)
-#initializeMachines()
-#serverIps = collectAndSetIPAddresses(serverIds)[0]
+#vmNames = ['ibwood_11', 'ibwood_12', 'ibwood_13']
+#	serverIps = collectIpAddresses(vmNames)
+initializeMachines()
+serverIps = collectAndSetIPAddresses(serverIds)[0]
 hostString = buildHostString(serverIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
@@ -155,10 +155,11 @@ def connectHosts():
             #time.sleep(1)
             result = chan.recv(10e6)
             #print(result)
-def moveFilesAndSetupHadoop():
+def installChef():
     for sf in sftps:
         sf.put('installChef.sh', 'installChef.sh')
     for chan in chans:
+        chan.send('sudo su \n')
         chan.send('source installChef.sh\n')
         chan.send('echo "done"\n')
 
@@ -169,17 +170,24 @@ def moveFilesAndSetupHadoop():
             if chan.recv_ready():
                 result = chan.recv(10e6)
                 print(result)
-                if result[result.rfind('@')-10:result.rfind('@')] == 'done\nroot':
+                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
+                    print("DONEDONE")
                     doneyet = True
             else:
                 time.sleep(60)
     for chan in chans:
         chan.send('cd /home/ubuntu \n')
         chan.send('chmod -R 777 chef-repo\n')
+    time.sleep(10)
+def moveFilesAndSetupHadoop():
+    
+    for chan in chans:
+        chan.send('sudo su \n')
+        chan.send('cd /home/ubuntu \n')
     i = 0
     for sf in sftps:
-        sf.put('roles/java.rb', 'chef-repo/roles/java.rb')
-        sf.put('roles/hadoop.rb', 'chef-repo/roles/hadoop.rb')
+        sf.put('java.rb', 'chef-repo/roles/java.rb')
+        sf.put('hadoop.rb', 'chef-repo/roles/hadoop.rb')
         sf.put('solo.rb', 'chef-repo/solo.rb')
         sf.put('zoo.cfg', 'chef-repo/zoo.cfg')
         sf.put('cleanZoo.txt', 'cleanZoo.txt')
@@ -198,8 +206,10 @@ def moveFilesAndSetupHadoop():
         while not doneyet:
             if chan.recv_ready():
                 result = chan.recv(10e6)
-                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\n\root':
+                print(result)
+                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
                     doneyet = True
+                    print('DONEDONE2')
             else:
                 time.sleep(60)
     chans[0].send('service hadoop-yarn-resourcemanager stop\n')
@@ -207,6 +217,7 @@ def moveFilesAndSetupHadoop():
     chans[0].send('/etc/init.d/hadoop-hdfs-namenode init\n')
     chans[0].send('service hadoop-hdfs-namenode start \n')
     chans[0].send('/usr/lib/hadoop/libexec/init-hdfs.sh \n')
+    time.sleep(10)
     chans[0].send('service hadoop-yarn-resourcemanager start \n')
     chans[0].send('service hadoop-yarn-nodemanager start \n')
     for chan in chans[1:]:
@@ -214,29 +225,95 @@ def moveFilesAndSetupHadoop():
 def setupZookeeper():
     i = 0
     for chan in chans:
+        chan.send('sudo su \n')
         chan.send('cd /home/ubuntu \n')
         chan.send('wget http://www.interior-dsgn.com/apache/zookeeper/zookeeper-3.4.6/zookeeper-3.4.6.tar.gz \n')
         chan.send('tar -zxf zookeeper* \n')
-        chan.send('rm *.tar.gz')
-        chan.send('cd zookeeper-3.4.6 \n')
+        time.sleep(2)
+        chan.send('rm *.tar.gz \n')
+        
+        chan.send('mv zookeeper-3.4.6 zookeeper \n')
+        chan.send('cd zookeeper \n')
         chan.send('mkdir /var/zookeeper \n')
         chan.send('echo "'+str(i+1)+'" >>/var/zookeeper/myid \n')
-        chan.send('mv ../chef-repo/zoo.cfg conf/ \n')
         
         chan.send('apt-get install daemontools \n')
+        i += 1
+    time.sleep(20)
+    i = 0
+    for chan in chans:
         chan.send('cd /home/ubuntu \n')
-        chan.send('mkdir zookeeper \n')
+        #chan.send('mkdir zookeeper \n')
+        sftps[i].put('zoo.cfg', 'zoo.cfg')
         sftps[i].put('run', 'run')
         
+        chan.send('mv zoo.cfg zookeeper/conf/zoo.cfg \n')
         chan.send('mv run zookeeper/run \n')
         chan.send('chmod 755 zookeeper/run \n')
+        i += 1
     time.sleep(10)
+    print(chans[0].recv(10e6))
     for chan in chans:
         chan.send('tmux \n')
+        time.sleep(10)
         chan.send('supervise zookeeper & \n')
         chan.send('tmux detach \n')
         chan.send('crontab cleanZoo.txt \n')
         i += 1
+    time.sleep(60)
+    #for chan in chans:
+    #    result = chan.recv(10e6)
+    #    print(result)
+def setupHBase():
+    for chan in chans[:1]:
+        chan.send('sudo su \n')
+        chan.send('cd /home/ubuntu \n')
+        chan.send('wget http://mirrors.sonic.net/apache/hbase/stable/hbase-0.98.10-hadoop2-bin.tar.gz \n')
         
+        chan.send('tar xzf hbase-0.98.10-hadoop2-bin.tar.gz \n')
+        chan.send('rm *.tar.gz \n')
+        chan.send('mv hbase-* hbase \n')
+        chan.send('cd hbase \n')
+        chan.send('export JAVA_HOME=/usr \n')
+        chan.send('export HADOOP_USER_NAME=hdfs\n')
+        chan.send('echo "done"\n')
+    time.sleep(60)
+    for chan in chans[:1]:
+        doneyet = False
+        while not doneyet:
+            if chan.recv_ready():
+                result = chan.recv(10e6)
+                print(result)
+                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
+                    doneyet = True
+                    print('DONEDONE3')
+
+    for sf in sftps[:1]:
+        sf.put('zoo.cfg', 'zoo.cfg')
+        sf.put('hbase-env.sh', 'hbase-env.sh')
+        sf.put('hbase-site.xml', 'hbase-site.xml')
+        sf.put('regionservers', 'regionservers')
+    for chan in chans[:1]:
+        chan.send('mv /home/ubuntu/zoo.cfg /home/ubuntu/hbase/conf/zoo.cfg \n')
+        chan.send('mv /home/ubuntu/hbase-env.sh /home/ubuntu/hbase/conf/hbase-env.sh \n')
+        chan.send('mv /home/ubuntu/hbase-site.xml /home/ubuntu/hbase/conf/hbase-site.xml \n')
+        chan.send('mv /home/ubuntu/regionservers /home/ubuntu/hbase/conf/regionservers \n')
+        chan.send('yes \n yes \n')
+
+    chans[0].send('./bin/start-hbase.sh')
+        ### Move zoo.cfg
+        ### conf/hbase-env.sh
+        ### conf/hbase-site.xml
+        ### hadoop1 = /bin/start-hbase.sh
+        
+        #chan.send('wget -O-https://archive.apache.org/dist/bigtop/bigtop-0.7.0/repos/GPG-KEY-bigtop | apt-key add# - \n')
+        #chan.send('wget -O /etc/apt/sources.list.d/bigtop.list http://www.apache.org/dist/bigtop/bigtop-0.7.0/repos/quantal/bigtop.list \n')
+        #chan.send('apt-get update \n')
+        
+        #chan.send('cd /home/ubuntu \n')
+        #chan.send('rm chef-repo/cookbooks/hadoop/recipes/hbase.rb \n')
+        #chan.send("""echo 'package "hbase" \npackage "hbase-doc"\npackage "hbase-master"\npackage "hbase-regionserver"\npackage "hbase-rest"\npackage "hbase-thrift"\npackage "hue-hbase"\npackage "phoenix"' >> /chef-repo/cookbooks/hadoop/recipes/hbase.rb \n""")
     
      
+
+
