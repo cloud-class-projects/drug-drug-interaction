@@ -1,5 +1,44 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.4</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.4</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.4</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                   <descriptorRefs>
+                      <descriptorRef>jar-with-dependencies</descriptorRef>
+                   </descriptorRefs>
+                   <archive>
+                      <manifest>
+                          <mainClass>com.mycompany.gettweets.App</mainClass>
+                      </manifest>
+                   </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>                        
+                            <goal>single</goal>
+                        </goals>
+                     </execution>
+                 </executions>
+            </plugin>
+        </plugins>
+    </build>
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.mycompany</groupId>
@@ -41,5 +80,12 @@
         <artifactId>snakeyaml</artifactId>
         <version>1.14</version>
     </dependency>
+    <dependency>
+	<groupId>org.apache.hbase</groupId>
+	<artifactId>hbase-client</artifactId>
+	<version>0.98.10-hadoop2</version>
+    </dependency>
+
+
   </dependencies>
 </project>
