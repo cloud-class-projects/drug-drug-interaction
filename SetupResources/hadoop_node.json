@@ -3,8 +3,7 @@
                 "role[java]",
                 "recipe[java]",
                 "role[hadoop]",
-                "recipe[hadoop::hadoop_hdfs_datanode]",
-                "recipe[hadoop::pig]"
+                "recipe[hadoop::hadoop_hdfs_datanode]"
               ]
 
 }
