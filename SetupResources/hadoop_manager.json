@@ -4,7 +4,6 @@
                 "role[hadoop]",
                 "recipe[hadoop::hadoop_hdfs_namenode]",
                 "recipe[hadoop::hadoop_yarn_nodemanager]",
-                "recipe[hadoop::hadoop_yarn_resourcemanager]",
-                "recipe[hadoop::pig]"
+                "recipe[hadoop::hadoop_yarn_resourcemanager]"
               ]
 }
