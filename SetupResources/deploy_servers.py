@@ -6,6 +6,7 @@ import paramiko as pm
 import socket
 #had to run manual commands, mongo.start, mongo.boot y, mongo.boot N, user.mongo, mongo.simple
 #changed key name to ibwood_ubuntu-key (so ibwood_ibwood_ubuntu-key)
+#requires cmd 1.2.2
 cloudmesh.shell("cloud on india")
 username = cloudmesh.load().username()
 mesh = cloudmesh.mesh("mongo")
