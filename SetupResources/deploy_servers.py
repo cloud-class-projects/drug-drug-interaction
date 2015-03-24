@@ -12,7 +12,7 @@ username = cloudmesh.load().username()
 mesh = cloudmesh.mesh("mongo")
 mesh.activate(username)
 mesh.refresh(username, types=['flavors', 'images', 'servers'], names=['india'])
-image = 'futuregrid/ubuntu-14.04'
+image = 'futuresystems/ubuntu-14.04'
 flavor= 'm1.medium'
 cloud = 'india'
 
@@ -35,16 +35,19 @@ def initializeMachines():
     return(vmNames, serverIds)
 def collectIpAddresses(vmNames):
     ips = {}
+    pubips = {}
     ids = {}
     servers=mesh.servers(clouds=['india'], cm_user_id=username)['india']
     for serverId in servers:
         server = servers[serverId]
-        
+        print(server)
         if server['name'] in vmNames:
-            ips[server['name']]=server['addresses']['private'][0]['addr']
+            ips[server['name']]=server['addresses']['int-net'][0]['addr']
+            pubips[server['name']]=server['addresses']['int-net'][1]['addr']
             ids[server['name']] = serverId
     for name in vmNames:
         serverIps.append(ips[name])
+	serverPublicIps.append(pubips[name])
         serverIds.append(ids[name])
     return(serverIps)
 def collectAndSetIPAddresses(serverIds):
@@ -60,7 +63,8 @@ def collectAndSetIPAddresses(serverIds):
             mesh.refresh(username, names=['india'], types=['servers'])
             server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
         time.sleep(1)
-        serverIps.append(server['addresses']['private'][0]['addr'])
+        #print(server)
+	serverIps.append(server['addresses']['int-net'][0]['addr'])
         serverPublicIps.append(mesh.assign_public_ip('india', serverid, username))
     return(serverIps, serverPublicIps)
 #time.sleep(30)
@@ -104,11 +108,11 @@ def deleteServers():
 #        
 #        #transports.append(tscon)
 #    #return(transports)
-#vmNames = ['ibwood_11', 'ibwood_12', 'ibwood_13']
-#	serverIps = collectIpAddresses(vmNames)
-initializeMachines()
-serverIps = collectAndSetIPAddresses(serverIds)[0]
-hostString = buildHostString(serverIps, vmNames)
+vmNames = ['ibwood_33', 'ibwood_34', 'ibwood_35']
+serverIps = collectIpAddresses(vmNames)
+#initializeMachines()
+#serverIps = collectAndSetIPAddresses(serverIds)[0]
+hostString = buildHostString(serverPublicIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
 chans = []
@@ -116,7 +120,7 @@ sftps = []
 hkeys = []
 def establishConnections():
     for i in range(numStart):
-        ip = serverIps[i]
+        ip = serverPublicIps[i]
         pk=pm.rsakey.RSAKey(filename='../../.ssh/id_rsa')
         scon = socket.create_connection((ip, '22'))
         tscon = pm.transport.Transport(scon)
