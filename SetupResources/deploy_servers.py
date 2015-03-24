@@ -160,6 +160,9 @@ def connectHosts():
             #time.sleep(1)
             result = chan.recv(10e6)
             #print(result)
+    for chan in chans:
+        for i in range(numStart):
+            chan.send('ssh-keyscan hadoop'+str(i+1) +' >> ~/.ssh/known_hosts\n')
 def installChef():
     for sf in sftps:
         sf.put('installChef.sh', 'installChef.sh')
@@ -273,10 +276,11 @@ def setupHBase():
     for chan in chans[:1]:
         chan.send('sudo su \n')
         chan.send('cd /home/ubuntu \n')
-        chan.send('wget http://mirrors.sonic.net/apache/hbase/stable/hbase-0.98.10-hadoop2-bin.tar.gz \n')
-        
-        chan.send('tar xzf hbase-0.98.10-hadoop2-bin.tar.gz \n')
+        #chan.send('wget http://mirrors.sonic.net/apache/hbase/stable/hbase-0.98.10-hadoop2-bin.tar.gz \n')
+        chan.send('wget http://mirrors.sonic.net/apache/hbase/stable/hbase-1.0.0-bin.tar.gz \n')
+        chan.send('tar xzf hbase-1* \n')
         chan.send('rm *.tar.gz \n')
+        chan.send('mv hbase-1* hbase \n')
         chan.send('mv hbase-* hbase \n')
         chan.send('cd hbase \n')
         chan.send('export JAVA_HOME=/usr \n')
@@ -303,7 +307,7 @@ def setupHBase():
         chan.send('mv /home/ubuntu/hbase-env.sh /home/ubuntu/hbase/conf/hbase-env.sh \n')
         chan.send('mv /home/ubuntu/hbase-site.xml /home/ubuntu/hbase/conf/hbase-site.xml \n')
         chan.send('mv /home/ubuntu/regionservers /home/ubuntu/hbase/conf/regionservers \n')
-        chan.send('yes \n yes \n')
+        chan.send('y \n y \n')
 
     chans[0].send('./bin/start-hbase.sh')
         ### Move zoo.cfg
@@ -319,6 +323,26 @@ def setupHBase():
         #chan.send('rm chef-repo/cookbooks/hadoop/recipes/hbase.rb \n')
         #chan.send("""echo 'package "hbase" \npackage "hbase-doc"\npackage "hbase-master"\npackage "hbase-regionserver"\npackage "hbase-rest"\npackage "hbase-thrift"\npackage "hue-hbase"\npackage "phoenix"' >> /chef-repo/cookbooks/hadoop/recipes/hbase.rb \n""")
     
-     
+def setupPig():
+    chans[0].send('su hdfs\n')
+    chans[0].send('hadoop fs -mkdir lists\n')
+    chans[0].send('hadoop fs -chown -R root hbase\n')
+    chans[0].send('hadoop fs -chown -R root lists\n')
+    chans[0].send('exit\n')
+    chans[0].send('wget http://download.nextag.com/apache/pig/pig-0.14.0/pig-0.14.0.tar.gz\n')
+    chans[0].send('tar -xvf pig-0.14.0.tar.gz\n')
+    chans[0].send('rm *.tar.gz\n')
+    chans[0].send('mv pig-0.14.0 pig\n')
+    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/pig/lib/*:/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*' >> .bash_profile \n")
+    chans[0].send("source ~/.bash_profile\n")
+
+#To Run
+#./hbase/bin/hbase shell
+#>create 'tweets', 'userid', 'drug', 'symptom', 'creation_ts', 'tweet_text'
+#>quit
+#tmux a
+#C+b c
+#cd ~
+#supervise GetTweets
 
 
