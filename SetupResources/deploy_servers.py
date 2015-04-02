@@ -73,7 +73,7 @@ def buildHostString( serverIps, vmNames):
     hostString = '#hadoop \n'
     for i in range(numStart):
         print(i)
-        hostString += str(serverIps[i]) + ' ' + str(vmNames[i]) + ' hadoop' + str(i+1)+'\n'
+        hostString += str(serverIps[i]) + ' ' + str(vmNames[i]) + ' '+ str(vmNames[i]).replace('_', '-') + ' hadoop' + str(i+1)+'\n'
     #    hostString += str(serverPublicIps[i]) + ' ' + str(vmNames[i]) + ' hadoop' + str(i+1)+'\n'
     return(hostString)
 
@@ -108,10 +108,10 @@ def deleteServers():
 #        
 #        #transports.append(tscon)
 #    #return(transports)
-vmNames = ['ibwood_33', 'ibwood_34', 'ibwood_35']
-serverIps = collectIpAddresses(vmNames)
-#initializeMachines()
-#serverIps = collectAndSetIPAddresses(serverIds)[0]
+#vmNames = ['ibwood_36', 'ibwood_37', 'ibwood_38']
+#serverIps = collectIpAddresses(vmNames)
+initializeMachines()
+serverIps = collectAndSetIPAddresses(serverIds)[0]
 hostString = buildHostString(serverPublicIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
