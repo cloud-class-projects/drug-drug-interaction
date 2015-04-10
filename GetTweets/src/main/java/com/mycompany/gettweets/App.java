@@ -109,6 +109,10 @@ public class App
             String drugString = "";
             String symptomString = "";
             for (String keyobj : keyobjs) {
+                if (keyobj.contentEquals("warning") || keyobj.contentEquals("disconnect") ||keyobj.contentEquals("limit") )
+                {
+                    System.out.println(obj.toString());
+                }
                 if(keyobj.contentEquals("text"))
                 {
                     tweetText = obj.getString(keyobj);
@@ -288,6 +292,7 @@ public class App
         
         //System.out.println(inDB.toString());
         collect(symptoms, drugs, hTable);
+        System.exit(-1);
         //testYaml();
     }
 }
