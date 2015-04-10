@@ -1,20 +1,20 @@
 import sys
 import uuid
-import cloudmesh
+#import cloudmesh
 import time
 import paramiko as pm
 import socket
 #had to run manual commands, mongo.start, mongo.boot y, mongo.boot N, user.mongo, mongo.simple
 #changed key name to ibwood_ubuntu-key (so ibwood_ibwood_ubuntu-key)
 #requires cmd 1.2.2
-cloudmesh.shell("cloud on india")
-username = cloudmesh.load().username()
-mesh = cloudmesh.mesh("mongo")
-mesh.activate(username)
-mesh.refresh(username, types=['flavors', 'images', 'servers'], names=['india'])
-image = 'futuresystems/ubuntu-14.04'
-flavor= 'm1.medium'
-cloud = 'india'
+#cloudmesh.shell("cloud on india")
+#username = cloudmesh.load().username()
+#mesh = cloudmesh.mesh("mongo")
+#mesh.activate(username)
+#mesh.refresh(username, types=['flavors', 'images', 'servers'], names=['india'])
+#image = 'futuresystems/ubuntu-14.04'
+#flavor= 'm1.medium'
+#cloud = 'india'
 
 vmNames = []
 serverIds = []
@@ -24,50 +24,50 @@ serverPubKeys = []
 clients = []
 
 numStart = 3
-def initializeMachines():
-    print('Initializing Machines')   
-    for i in range(numStart):
-        print(i)
-        result = mesh.start(cloud=cloud, cm_user_id=username, image=image, flavor=flavor)
-        print(result)
-        vmNames.append(result['name'])
-        serverIds.append(result['server']['id'])
-    return(vmNames, serverIds)
-def collectIpAddresses(vmNames):
-    ips = {}
-    pubips = {}
-    ids = {}
-    servers=mesh.servers(clouds=['india'], cm_user_id=username)['india']
-    for serverId in servers:
-        server = servers[serverId]
-        print(server)
-        if server['name'] in vmNames:
-            ips[server['name']]=server['addresses']['int-net'][0]['addr']
-            pubips[server['name']]=server['addresses']['int-net'][1]['addr']
-            ids[server['name']] = serverId
-    for name in vmNames:
-        serverIps.append(ips[name])
-	serverPublicIps.append(pubips[name])
-        serverIds.append(ids[name])
-    return(serverIps)
-def collectAndSetIPAddresses(serverIds):
-    print('Collecting IPs')
-    mesh.refresh(username, names=['india'], types=['servers'])
-    i = 0
-    for serverid in serverIds:
-        print(i)
-        i+=1
-        server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
-        while not server['status'] == 'ACTIVE':
-            time.sleep(2)
-            mesh.refresh(username, names=['india'], types=['servers'])
-            server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
-        time.sleep(1)
-        #print(server)
-	serverIps.append(server['addresses']['int-net'][0]['addr'])
-        serverPublicIps.append(mesh.assign_public_ip('india', serverid, username))
-    return(serverIps, serverPublicIps)
-#time.sleep(30)
+#def initializeMachines():
+#    print('Initializing Machines')   
+#    for i in range(numStart):
+#        print(i)
+#        result = mesh.start(cloud=cloud, cm_user_id=username, image=image, flavor=flavor)
+#        print(result)
+#        vmNames.append(result['name'])
+#        serverIds.append(result['server']['id'])
+#    return(vmNames, serverIds)
+#def collectIpAddresses(vmNames):
+#    ips = {}
+#    pubips = {}
+#    ids = {}
+#    servers=mesh.servers(clouds=['india'], cm_user_id=username)['india']
+#    for serverId in servers:
+#        server = servers[serverId]
+#        print(server)
+#        if server['name'] in vmNames:
+#            ips[server['name']]=server['addresses']['int-net'][0]['addr']
+#            pubips[server['name']]=server['addresses']['int-net'][1]['addr']
+#            ids[server['name']] = serverId
+#    for name in vmNames:
+#        serverIps.append(ips[name])
+#	serverPublicIps.append(pubips[name])
+#        serverIds.append(ids[name])
+#    return(serverIps)
+#def collectAndSetIPAddresses(serverIds):
+##    print('Collecting IPs')
+#    mesh.refresh(username, names=['india'], types=['servers'])
+#    i = 0
+#    for serverid in serverIds:
+#        print(i)
+#        i+=1
+#        server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
+#        while not server['status'] == 'ACTIVE':
+#            time.sleep(2)
+#            mesh.refresh(username, names=['india'], types=['servers'])
+#            server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
+#        time.sleep(1)
+#        #print(server)
+#	serverIps.append(server['addresses']['int-net'][0]['addr'])
+#        serverPublicIps.append(mesh.assign_public_ip('india', serverid, username))
+#    return(serverIps, serverPublicIps)
+##time.sleep(30)
 def buildHostString( serverIps, vmNames):
     print('Building Hosts String')
     hostString = '#hadoop \n'
@@ -110,23 +110,37 @@ def deleteServers():
 #    #return(transports)
 #vmNames = ['ibwood_36', 'ibwood_37', 'ibwood_38']
 #serverIps = collectIpAddresses(vmNames)
-initializeMachines()
-serverIps = collectAndSetIPAddresses(serverIds)[0]
-hostString = buildHostString(serverPublicIps, vmNames)
+#vmNames = ['ibwood_1', 'ibwood_2', 'ibwood_3']
+#serverIps = ['10.23.0.126', '10.23.0.127', '10.23.0.128']
+#serverPublicIps = ['149.165.158.240', '149.165.158.241', '149.165.158.242']
+vmNames = ['ibwood_4', 'ibwood_5', 'ibwood_6']
+serverIps = ['10.23.0.129', '10.23.0.130', '10.23.0.129']
+serverPublicIps = ['149.165.158.121', '149.165.158.122', '149.165.158.123']
+#initializeMachines()
+#serverIps = collectAndSetIPAddresses(serverIds)[0]
+hostString = buildHostString(serverIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
 chans = []
 sftps = []
 hkeys = []
+pwordF = open('pword.txt', 'r')
+pword = pwordF.read()
+pwordF.close()
 def establishConnections():
     for i in range(numStart):
-        ip = serverPublicIps[i]
-        pk=pm.rsakey.RSAKey(filename='../../.ssh/id_rsa')
+        print(i)
+        ip = serverIps[i]#serverPublicIps[i]
+        print(ip)
+        pk=pm.rsakey.RSAKey(filename='../../.ssh/id_rsa', password=pword)
         scon = socket.create_connection((ip, '22'))
+        print('created connection')
         tscon = pm.transport.Transport(scon)
         tscon.connect(username='ubuntu', pkey=pk)
+        print('connected transport')
         transports.append(tscon)
         chan = transports[i].open_session()
+        print('opened session')
         chan.settimeout(2)
         chan.get_pty()
         chan.invoke_shell()
@@ -143,10 +157,24 @@ def connectHosts():
         chan.send('ssh-keygen -t rsa -P "" -f /root/.ssh/id_rsa\nn\n')
         time.sleep(5)
         chan.send('cat /root/.ssh/id_rsa.pub >> /home/ubuntu/hadoop'+str(i) + '.pub\n')
-        
+        chan.send('echo "done"\n')
+    for chan in chans:
+        doneyet = False
+        while not doneyet:
+            if chan.recv_ready():
+                result = chan.recv(10e6)
+                #print(result)
+                lastpart = result[result.rfind('@')-12:result.rfind('@')]
+                if 'done' in lastpart and 'root' in lastpart:
+                    #if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
+                    doneyet = True
+                    print('DONE KeyGen')
+            else:
+                time.sleep(60)
+
     for i in range(numStart):
         sf = sftps[i]
-        f = sf.open('hadoop'+str(i)+'.pub', 'r')
+        f = sf.open('/home/ubuntu/hadoop'+str(i)+'.pub', 'r')
         hkey = f.read()
         f.close()
         hkeys.append(hkey)
@@ -178,7 +206,8 @@ def installChef():
             if chan.recv_ready():
                 result = chan.recv(10e6)
                 print(result)
-                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
+                lastpart = result[result.rfind('@')-12:result.rfind('@')]
+                if 'done' in lastpart and 'root' in lastpart:
                     print("DONEDONE")
                     doneyet = True
             else:
@@ -194,6 +223,7 @@ def moveFilesAndSetupHadoop():
         chan.send('cd /home/ubuntu \n')
     i = 0
     for sf in sftps:
+        print(str(i))
         sf.put('java.rb', 'chef-repo/roles/java.rb')
         sf.put('hadoop.rb', 'chef-repo/roles/hadoop.rb')
         sf.put('solo.rb', 'chef-repo/solo.rb')
@@ -208,6 +238,7 @@ def moveFilesAndSetupHadoop():
         chan.send('cd chef-repo\n')
         chan.send('chef-solo -j solo.json -c solo.rb\n')
         chan.send('echo "done"\n')
+    print('here')
     time.sleep(60)
     for chan in chans:
         doneyet = False
@@ -215,7 +246,9 @@ def moveFilesAndSetupHadoop():
             if chan.recv_ready():
                 result = chan.recv(10e6)
                 print(result)
-                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
+                lastpart = result[result.rfind('@')-12:result.rfind('@')]
+                if 'done' in lastpart and 'root' in lastpart:
+                    #if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
                     doneyet = True
                     print('DONEDONE2')
             else:
@@ -273,43 +306,53 @@ def setupZookeeper():
     #    result = chan.recv(10e6)
     #    print(result)
 def setupHBase():
-    for chan in chans[:1]:
+    for chan in chans[:]:
         chan.send('sudo su \n')
         chan.send('cd /home/ubuntu \n')
         #chan.send('wget http://mirrors.sonic.net/apache/hbase/stable/hbase-0.98.10-hadoop2-bin.tar.gz \n')
-        chan.send('wget http://mirrors.sonic.net/apache/hbase/stable/hbase-1.0.0-bin.tar.gz \n')
-        chan.send('tar xzf hbase-1* \n')
+        chan.send('wget http://www.motorlogy.com/apache/hbase/hbase-0.98.11/hbase-0.98.11-hadoop2-bin.tar.gz  \n')
+        chan.send('tar xzf hbase-* \n')
         chan.send('rm *.tar.gz \n')
-        chan.send('mv hbase-1* hbase \n')
         chan.send('mv hbase-* hbase \n')
         chan.send('cd hbase \n')
-        chan.send('export JAVA_HOME=/usr \n')
+        #chan.send('apt-get install openjdk-7-jdk openjdk-7-jre\ny\n')
+        
+        chan.send('export JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64\n')
         chan.send('export HADOOP_USER_NAME=hdfs\n')
         chan.send('echo "done"\n')
     time.sleep(60)
-    for chan in chans[:1]:
+    for chan in chans[:]:
         doneyet = False
         while not doneyet:
             if chan.recv_ready():
                 result = chan.recv(10e6)
                 print(result)
-                if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
+                lastpart = result[result.rfind('@')-12:result.rfind('@')]
+                if 'done' in lastpart and 'root' in lastpart:
+                    #if result[result.rfind('@')-10:result.rfind('@')] == 'done\r\nroot':
                     doneyet = True
                     print('DONEDONE3')
+                else:
+                    time.sleep(10)
 
-    for sf in sftps[:1]:
+    for sf in sftps[:]:
         sf.put('zoo.cfg', 'zoo.cfg')
         sf.put('hbase-env.sh', 'hbase-env.sh')
         sf.put('hbase-site.xml', 'hbase-site.xml')
         sf.put('regionservers', 'regionservers')
-    for chan in chans[:1]:
+    for chan in chans[:]:
         chan.send('mv /home/ubuntu/zoo.cfg /home/ubuntu/hbase/conf/zoo.cfg \n')
         chan.send('mv /home/ubuntu/hbase-env.sh /home/ubuntu/hbase/conf/hbase-env.sh \n')
         chan.send('mv /home/ubuntu/hbase-site.xml /home/ubuntu/hbase/conf/hbase-site.xml \n')
         chan.send('mv /home/ubuntu/regionservers /home/ubuntu/hbase/conf/regionservers \n')
         chan.send('y \n y \n')
 
-    chans[0].send('./bin/start-hbase.sh')
+    chans[0].send('./bin/hbase-daemon.sh --config /home/ubuntu/hbase/conf start master\n')
+    for chan in chans:
+        chan.send('./bin/hbase-daemon.sh --config /home/ubuntu/hbase/conf start regionserver\n')
+    #chans[0].send('hadoop fs -chown -R root /hbase\n')
+    #chans[0].send('hadoop fs -chmod -R 777 /hbase\n')
+    #chans[0].send('./bin/start-hbase.sh\n')
         ### Move zoo.cfg
         ### conf/hbase-env.sh
         ### conf/hbase-site.xml
@@ -333,13 +376,15 @@ def setupPig():
     chans[0].send('tar -xvf pig-0.14.0.tar.gz\n')
     chans[0].send('rm *.tar.gz\n')
     chans[0].send('mv pig-0.14.0 pig\n')
-    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/pig/lib/*:/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*' >> .bash_profile \n")
+    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/pig/lib/*:/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*' >> ~/.bash_profile \n")
     chans[0].send("source ~/.bash_profile\n")
 
 #To Run
 #./hbase/bin/hbase shell
-#>create 'tweets', 'userid', 'drug', 'symptom', 'creation_ts', 'tweet_text'
+#>create 'tweets', 'user_id', 'drug', 'symptom', 'creation_ts', 'tweet_text'
 #>quit
+#apt-get install git
+#git clone git clone https://github.com/cloud-class-projects/drug-drug-interaction.git
 #tmux a
 #C+b c
 #cd ~
