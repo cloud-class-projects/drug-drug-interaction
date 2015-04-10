@@ -114,7 +114,7 @@ def deleteServers():
 #serverIps = ['10.23.0.126', '10.23.0.127', '10.23.0.128']
 #serverPublicIps = ['149.165.158.240', '149.165.158.241', '149.165.158.242']
 vmNames = ['ibwood_4', 'ibwood_5', 'ibwood_6']
-serverIps = ['10.23.0.129', '10.23.0.130', '10.23.0.129']
+serverIps = ['10.23.0.132', '10.23.0.133', '10.23.0.134']
 serverPublicIps = ['149.165.158.121', '149.165.158.122', '149.165.158.123']
 #initializeMachines()
 #serverIps = collectAndSetIPAddresses(serverIds)[0]
@@ -316,7 +316,8 @@ def setupHBase():
         chan.send('mv hbase-* hbase \n')
         chan.send('cd hbase \n')
         #chan.send('apt-get install openjdk-7-jdk openjdk-7-jre\ny\n')
-        
+        chan.send("echo 'JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64' >> ~/.bash_profile \n")
+        chan.send("echo 'HADOOP_USER_NAME=hdfs\n' >> ~/.bash_profile \n")
         chan.send('export JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64\n')
         chan.send('export HADOOP_USER_NAME=hdfs\n')
         chan.send('echo "done"\n')
@@ -367,6 +368,7 @@ def setupHBase():
         #chan.send("""echo 'package "hbase" \npackage "hbase-doc"\npackage "hbase-master"\npackage "hbase-regionserver"\npackage "hbase-rest"\npackage "hbase-thrift"\npackage "hue-hbase"\npackage "phoenix"' >> /chef-repo/cookbooks/hadoop/recipes/hbase.rb \n""")
     
 def setupPig():
+    chans[0].send('sudo su\n')
     chans[0].send('su hdfs\n')
     chans[0].send('hadoop fs -mkdir lists\n')
     chans[0].send('hadoop fs -chown -R root hbase\n')
@@ -376,7 +378,7 @@ def setupPig():
     chans[0].send('tar -xvf pig-0.14.0.tar.gz\n')
     chans[0].send('rm *.tar.gz\n')
     chans[0].send('mv pig-0.14.0 pig\n')
-    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/pig/lib/*:/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*' >> ~/.bash_profile \n")
+    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*:/home/ubuntu/pig/lib/*' >> ~/.bash_profile \n")
     chans[0].send("source ~/.bash_profile\n")
 
 #To Run
@@ -389,5 +391,9 @@ def setupPig():
 #C+b c
 #cd ~
 #supervise GetTweets
-
+#cd /home/ubuntu
+#su hdfs
+#./pig/bin/pig drug-drug-interaction/wordCounts.pig
+#mkdir results
+#./getResults.sh
 
