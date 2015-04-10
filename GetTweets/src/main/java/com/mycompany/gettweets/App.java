@@ -106,6 +106,8 @@ public class App
             String userId = "";
             String date = "";
             String tweetText = "";
+            String drugString = "";
+            String symptomString = "";
             for (String keyobj : keyobjs) {
                 if(keyobj.contentEquals("text"))
                 {
@@ -115,6 +117,10 @@ public class App
                         if (tweetText.toLowerCase().contains(symptom))
                         {
                             tweetSymptoms.add(symptom);
+                            if(symptomString.length() == 0)
+                                symptomString += symptom;
+                            else
+                                symptomString += ","+ symptom;
                         }
                     }
                     for (String drug: drugs)
@@ -122,6 +128,10 @@ public class App
                         if (tweetText.toLowerCase().contains(drug))
                         {
                             tweetDrugs.add(drug);
+                            if(drugString.length() == 0)
+                                drugString += drug;
+                            else
+                                drugString += ","+ drug;
                         }
                     }
                 }
@@ -137,11 +147,12 @@ public class App
                 }
                 if(keyobj.contentEquals("created_at"))
                 {
-                    SimpleDateFormat dForm = new SimpleDateFormat("E MMM dd HH:mm:ss Z");
+                    SimpleDateFormat dForm = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
                     try{
                         Date creation = dForm.parse(obj.getString("created_at"));
                         //System.out.println(creation);
-                        date = String.valueOf(creation.getTime());
+                        long dateLong = creation.getTime();
+                        date = String.valueOf(dateLong);
                     }
                     
                     catch (ParseException e){
@@ -150,26 +161,30 @@ public class App
                 }
             }
             //System.out.println(tweetSymptoms);
-            Put tweetRow = new Put(tweetId.getBytes());
-            tweetRow.add("tweet_text".getBytes(Charset.forName("UTF-8")), null, tweetText.getBytes());
-            tweetRow.add("user_id".getBytes(), null, userId.getBytes());
-            tweetRow.add("creation_ts".getBytes(), null, date.getBytes());
-            for(String drug: tweetDrugs)
-            {
-                tweetRow.add("drug".getBytes(), drug.getBytes(), "t".getBytes());
-            }
-            for(String symptom: tweetSymptoms)
-            {
-                tweetRow.add("symptom".getBytes(), symptom.getBytes(), "t".getBytes());
-            }
-            //byte[] hello = "cf".getBytes(Charset.forName("UTF-8"));
-            //byte[] qual = "qualifier".getBytes(Charset.forName("UTF-8"));
-            //byte[] bang = "another".getBytes(Charset.forName("UTF-8"));
+            if (!tweetId.isEmpty()){
+                Put tweetRow = new Put(tweetId.getBytes());
+                tweetRow.add("tweet_text".getBytes(Charset.forName("UTF-8")), null, tweetText.getBytes());
+                tweetRow.add("user_id".getBytes(), null, userId.getBytes());
+                tweetRow.add("creation_ts".getBytes(), null, date.getBytes());
+                tweetRow.add("drug".getBytes(), null, drugString.getBytes());
+                tweetRow.add("symptom".getBytes(), null, symptomString.getBytes());
+                //for(String drug: tweetDrugs)
+                //{
+                //    tweetRow.add("drug".getBytes(), drug.getBytes(), "t".getBytes());
+                //}
+                //for(String symptom: tweetSymptoms)
+                //{
+                //    tweetRow.add("symptom".getBytes(), symptom.getBytes(), "t".getBytes());
+                //}
+                //byte[] hello = "cf".getBytes(Charset.forName("UTF-8"));
+                //byte[] qual = "qualifier".getBytes(Charset.forName("UTF-8"));
+                //byte[] bang = "another".getBytes(Charset.forName("UTF-8"));
 
-            //insRow.add(hello, qual, bang);
-            System.out.println("Adding Tweet ID: "+tweetId.toString());
-            System.out.flush();
-            hTable.put(tweetRow );
+                //insRow.add(hello, qual, bang);
+                System.out.println("Adding Tweet ID: "+tweetId.toString());
+                System.out.flush();
+                hTable.put(tweetRow );
+            }
         }
 
         client.stop();
