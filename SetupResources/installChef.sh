@@ -11,8 +11,12 @@ knife cookbook site download java
 knife cookbook site download apt
 knife cookbook site download yum
 knife cookbook site download hadoop
+knife cookbook site download sysctl
+knife cookbook site download ohai
 tar -zxf java*
 tar -zxf apt*
 tar -zxf yum*
 tar -zxf hadoop*
+tar -zxf sysctl*
+tar -zxf ohai*
 rm *.tar.gz
