@@ -316,8 +316,11 @@ def setupHBase():
         chan.send('mv hbase-* hbase \n')
         chan.send('cd hbase \n')
         #chan.send('apt-get install openjdk-7-jdk openjdk-7-jre\ny\n')
-        chan.send("echo 'JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64' >> ~/.bash_profile \n")
-        chan.send("echo 'HADOOP_USER_NAME=hdfs\n' >> ~/.bash_profile \n")
+        chan.send("echo 'JAVA_HOME=/usr/lib/jvm/java-6-oracle-amd64/' >> 
+/home/ubuntu/.bash_profile \n")
+        chan.send("echo 'HADOOP_USER_NAME=hdfs\n' >> 
+/home/ubuntu/.bash_profile 
+\n")
         chan.send('export JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64\n')
         chan.send('export HADOOP_USER_NAME=hdfs\n')
         chan.send('echo "done"\n')
@@ -378,8 +381,10 @@ def setupPig():
     chans[0].send('tar -xvf pig-0.14.0.tar.gz\n')
     chans[0].send('rm *.tar.gz\n')
     chans[0].send('mv pig-0.14.0 pig\n')
-    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*:/home/ubuntu/pig/lib/*' >> ~/.bash_profile \n")
-    chans[0].send("source ~/.bash_profile\n")
+    chans[0].send("echo 
+'PIG_CLASSPATH=/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*:/home/ubuntu/pig/lib/*' 
+>> /home/ubuntu/.bash_profile \n")
+    chans[0].send("source /home/ubuntu/.bash_profile\n")
 
 #To Run
 #./hbase/bin/hbase shell
@@ -393,7 +398,10 @@ def setupPig():
 #supervise GetTweets
 #cd /home/ubuntu
 #su hdfs
-#./pig/bin/pig drug-drug-interaction/wordCounts.pig
+#source .bash_profile
+#cd drug-drug-interaction
+#../pig/bin/pig drug-drug-interaction/wordCounts.pig
+#exit
 #mkdir results
 #./getResults.sh
 
