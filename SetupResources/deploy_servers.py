@@ -7,14 +7,6 @@ import socket
 #had to run manual commands, mongo.start, mongo.boot y, mongo.boot N, user.mongo, mongo.simple
 #changed key name to ibwood_ubuntu-key (so ibwood_ibwood_ubuntu-key)
 #requires cmd 1.2.2
-#cloudmesh.shell("cloud on india")
-#username = cloudmesh.load().username()
-#mesh = cloudmesh.mesh("mongo")
-#mesh.activate(username)
-#mesh.refresh(username, types=['flavors', 'images', 'servers'], names=['india'])
-#image = 'futuresystems/ubuntu-14.04'
-#flavor= 'm1.medium'
-#cloud = 'india'
 
 vmNames = []
 serverIds = []
@@ -24,50 +16,6 @@ serverPubKeys = []
 clients = []
 
 numStart = 3
-#def initializeMachines():
-#    print('Initializing Machines')   
-#    for i in range(numStart):
-#        print(i)
-#        result = mesh.start(cloud=cloud, cm_user_id=username, image=image, flavor=flavor)
-#        print(result)
-#        vmNames.append(result['name'])
-#        serverIds.append(result['server']['id'])
-#    return(vmNames, serverIds)
-#def collectIpAddresses(vmNames):
-#    ips = {}
-#    pubips = {}
-#    ids = {}
-#    servers=mesh.servers(clouds=['india'], cm_user_id=username)['india']
-#    for serverId in servers:
-#        server = servers[serverId]
-#        print(server)
-#        if server['name'] in vmNames:
-#            ips[server['name']]=server['addresses']['int-net'][0]['addr']
-#            pubips[server['name']]=server['addresses']['int-net'][1]['addr']
-#            ids[server['name']] = serverId
-#    for name in vmNames:
-#        serverIps.append(ips[name])
-#	serverPublicIps.append(pubips[name])
-#        serverIds.append(ids[name])
-#    return(serverIps)
-#def collectAndSetIPAddresses(serverIds):
-##    print('Collecting IPs')
-#    mesh.refresh(username, names=['india'], types=['servers'])
-#    i = 0
-#    for serverid in serverIds:
-#        print(i)
-#        i+=1
-#        server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
-#        while not server['status'] == 'ACTIVE':
-#            time.sleep(2)
-#            mesh.refresh(username, names=['india'], types=['servers'])
-#            server = mesh.servers(clouds=['india'], cm_user_id=username)['india'][serverid]
-#        time.sleep(1)
-#        #print(server)
-#	serverIps.append(server['addresses']['int-net'][0]['addr'])
-#        serverPublicIps.append(mesh.assign_public_ip('india', serverid, username))
-#    return(serverIps, serverPublicIps)
-##time.sleep(30)
 def buildHostString( serverIps, vmNames):
     print('Building Hosts String')
     hostString = '#hadoop \n'
@@ -77,47 +25,14 @@ def buildHostString( serverIps, vmNames):
     #    hostString += str(serverPublicIps[i]) + ' ' + str(vmNames[i]) + ' hadoop' + str(i+1)+'\n'
     return(hostString)
 
-def deleteServers():
-    for serverID in serverIds:
-        print(serverID)
-        print(mesh.delete(cloud, serverID, username))
-#"""sudo bash -c 'echo "%s" >> /etc/hosts'\n"""%hostString
-#def startClients(): 
-#    #for ip in serverPublicIps:
-#    print('Adding Host IP Addresses and creating public keys')
-#    i = 1
-#    for ip in serverIps:
-#        print(i)
-#        i += 1
-##        print(ip)
-#        
-#        #mesh.ssh_execute(ipaddr=ip, username='ubuntu', command = addHostsCommand)
-#        client = pm.SSHClient()
-#        client.set_missing_host_key_policy(pm.client.AutoAddPolicy())
-#        #print('trying to connect')
-#        #pk = pm.rsakey.RSAKey(filename='../.ssh/id_rsa')
-#        #print('got key')
-#        #sys.stdout.flush()
-#        #scon = socket.create_connection((ip, '22'))
-#        #print('created socket')
-#        #sys.stdout.flush()
-#        #tscon = pm.transport.Transport(scon)
-#        #print('creating transport')
-#        #sys.stdout.flush()
-#        #tscon.connect(username='ubuntu', pkey=pk)
-#        
-#        #transports.append(tscon)
-#    #return(transports)
-#vmNames = ['ibwood_36', 'ibwood_37', 'ibwood_38']
-#serverIps = collectIpAddresses(vmNames)
-#vmNames = ['ibwood_1', 'ibwood_2', 'ibwood_3']
-#serverIps = ['10.23.0.126', '10.23.0.127', '10.23.0.128']
-#serverPublicIps = ['149.165.158.240', '149.165.158.241', '149.165.158.242']
-vmNames = ['ibwood_4', 'ibwood_5', 'ibwood_6']
-serverIps = ['10.23.0.132', '10.23.0.133', '10.23.0.134']
-serverPublicIps = ['149.165.158.121', '149.165.158.122', '149.165.158.123']
+#If using Clousmesh:
 #initializeMachines()
-#serverIps = collectAndSetIPAddresses(serverIds)[0]
+#serverIps = collectAndSetIpAddresses(serverIds)[0]
+#Or with existing VMs
+#vmNames = [...]
+#serverIps = collectIpAddresses(vmNames)
+
+from configServers import *
 hostString = buildHostString(serverIps, vmNames)
 addHostsCommand =   """echo "%s" >> /etc/hosts \n""" %hostString
 transports = []
@@ -238,7 +153,7 @@ def moveFilesAndSetupHadoop():
         chan.send('cd chef-repo\n')
         chan.send('chef-solo -j solo.json -c solo.rb\n')
         chan.send('echo "done"\n')
-    print('here')
+    #print('here')
     time.sleep(60)
     for chan in chans:
         doneyet = False
@@ -316,10 +231,11 @@ def setupHBase():
         chan.send('mv hbase-* hbase \n')
         chan.send('cd hbase \n')
         #chan.send('apt-get install openjdk-7-jdk openjdk-7-jre\ny\n')
-        chan.send("echo 'JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64' >> ~/.bash_profile \n")
-        chan.send("echo 'HADOOP_USER_NAME=hdfs\n' >> ~/.bash_profile \n")
-        chan.send('export JAVA_HOME=/usr/lib/jvm/java-7-oracle-amd64\n')
-        chan.send('export HADOOP_USER_NAME=hdfs\n')
+        chan.send("echo 'export JAVA_HOME=/usr/lib/jvm/java-6-oracle-amd64/' >> /home/ubuntu/.bash_profile \n")
+        chan.send("echo 'export HADOOP_USER_NAME=hdfs\n' >> /home/ubuntu/.bash_profile \n")
+        #chan.send('export JAVA_HOME=/usr/lib/jvm/java-6-oracle-amd64\n')
+        #chan.send('export HADOOP_USER_NAME=hdfs\n')
+        chan.send("source /home/ubuntu/.bash_profile \n")
         chan.send('echo "done"\n')
     time.sleep(60)
     for chan in chans[:]:
@@ -368,20 +284,40 @@ def setupHBase():
         #chan.send("""echo 'package "hbase" \npackage "hbase-doc"\npackage "hbase-master"\npackage "hbase-regionserver"\npackage "hbase-rest"\npackage "hbase-thrift"\npackage "hue-hbase"\npackage "phoenix"' >> /chef-repo/cookbooks/hadoop/recipes/hbase.rb \n""")
     
 def setupPig():
-    chans[0].send('sudo su\n')
-    chans[0].send('su hdfs\n')
-    chans[0].send('hadoop fs -mkdir lists\n')
-    chans[0].send('hadoop fs -chown -R root hbase\n')
-    chans[0].send('hadoop fs -chown -R root lists\n')
-    chans[0].send('exit\n')
+    #chans[0].send('sudo su\n')
+    #chans[0].send('su hdfs\n')
+    chans[0].send('hadoop fs -mkdir /lists\n')
+    #chans[0].send('hadoop fs -chown -R root hbase\n')
+    #chans[0].send('hadoop fs -chown -R root lists\n')
+    #chans[0].send('exit\n')
+    chans[0].send('cd /home/ubuntu \n')
     chans[0].send('wget http://download.nextag.com/apache/pig/pig-0.14.0/pig-0.14.0.tar.gz\n')
     chans[0].send('tar -xvf pig-0.14.0.tar.gz\n')
     chans[0].send('rm *.tar.gz\n')
     chans[0].send('mv pig-0.14.0 pig\n')
-    chans[0].send("echo 'PIG_CLASSPATH=/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*:/home/ubuntu/pig/lib/*' >> ~/.bash_profile \n")
-    chans[0].send("source ~/.bash_profile\n")
+    chans[0].send("echo 'export PIG_CLASSPATH=/home/ubuntu/hbase/*:/home/ubuntu/hbase/lib/*:/home/ubuntu/pig/lib/*' >> /home/ubuntu/.bash_profile \n")
+    chans[0].send("source /home/ubuntu/.bash_profile\n")
 
-#To Run
+#How to To Run-#
+#On india: ----#
+
+#Create 3 VMs
+#Add Floating Ips (possibly unnecessary)
+#update configServers.py
+
+#cd ~/drug-drug-interaction/SetupResources
+#python
+#>from deploy_servers import *
+#>establishConnections()
+#>connectHosts()
+#>installChef()
+#>moveFilesAndSetupHadoop()
+#>setupZookeeper()
+#>setupHBase()
+#>setupPig()
+
+#On Namenode (first VM in configServers.py) ----#
+#cd /home/ubuntu
 #./hbase/bin/hbase shell
 #>create 'tweets', 'user_id', 'drug', 'symptom', 'creation_ts', 'tweet_text'
 #>quit
@@ -393,7 +329,10 @@ def setupPig():
 #supervise GetTweets
 #cd /home/ubuntu
 #su hdfs
-#./pig/bin/pig drug-drug-interaction/wordCounts.pig
+#source .bash_profile
+#cd drug-drug-interaction
+#../pig/bin/pig drug-drug-interaction/wordCounts.pig
+#exit
 #mkdir results
 #./getResults.sh
 
