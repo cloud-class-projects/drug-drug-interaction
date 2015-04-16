@@ -6,6 +6,7 @@ tokenizedDrugs = FOREACH data GENERATE user_id#'' as userid,FLATTEN(TOKENIZE(dru
 tokenizedSymptoms = FOREACH data GENERATE user_id#'' as userid,FLATTEN(TOKENIZE(symptom#'')) as symptom;
 
 --group by user
+byUser = GROUP data by user_id#'';
 byUserDS = GROUP tokenizedDS by userid;
 byUserDrugs = Group tokenizedDrugs by userid;
 byUserSymptoms = Group tokenizedSymptoms by userid;
@@ -42,6 +43,7 @@ coCoDrugSymptomCount = GROUP coCoDrugSymptomCount BY (drug1, drug2, symptom);
 
 --count the users using each bigram
 tweetCount = FOREACH (GROUP data ALL) GENERATE COUNT(data);
+userCount = FOREACH (GROUP byUser ALL) GENERATE COUNT(byUser);
 DrugCount = FOREACH DrugCount GENERATE group as drug, COUNT(DrugCount) as count;
 SymptomCount = FOREACH SymptomCount GENERATE group as symptom, COUNT (SymptomCount) as count;
 coDrugCount = FOREACH coDrugCount GENERATE group as drugdrug, COUNT(coDrugCount) as count;
@@ -57,6 +59,7 @@ coCoDrugSymptomCount = ORDER coCoDrugSymptomCount BY count;
 
 --Remove Old Results!
 rmf /lists/tweetCount;
+rmf /lists/userCount;
 rmf /lists/DrugCount;
 rmf /lists/SymptomCount;
 rmf /lists/coDrugCount;
@@ -65,6 +68,7 @@ rmf /lists/coCoDrugSymptomCount
 
 --Store Results!
 store tweetCount into '/lists/tweetCount' using org.apache.pig.piggybank.storage.CSVExcelStorage(',');
+store userCount into '/lists/userCount' using org.apache.pig.piggybank.storage.CSVExcelStorage(',');
 store DrugCount into '/lists/DrugCount' using org.apache.pig.piggybank.storage.CSVExcelStorage(',');
 store SymptomCount into '/lists/SymptomCount' using org.apache.pig.piggybank.storage.CSVExcelStorage(',');
 store coDrugCount into '/lists/coDrugCount' using org.apache.pig.piggybank.storage.CSVExcelStorage(',');
