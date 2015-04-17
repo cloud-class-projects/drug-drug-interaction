@@ -1,0 +1,229 @@
+\documentclass[letterpaper]{article}
+\usepackage[numbers]{natbib}
+
+\usepackage[a4paper]{geometry}
+\usepackage{amsmath,amsfonts,bm,amssymb,latexsym,amsthm}
+\usepackage{graphicx, graphics}
+\usepackage{multirow}
+\usepackage{multicol}
+%\usepackage{authblk}
+\usepackage{pdfpages}
+\usepackage{pgfplots}
+\usepackage{listings}
+%\usepackage{svg}
+\usepackage{csvsimple}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{longtable}
+\setlength{\bibsep}{5pt}
+\usepackage{listings}
+
+\begin{document}
+
+\section{Installing and Running the System}
+
+To install the drug-drug interaction symptom detector follow the steps below.
+
+\subsection{Initialize VMs} 
+On india.futuresystems.org or other OpenStack server, clone the github repository: \
+\begin{lstlisting}
+$git clone https://github.com/cloud-class-projects/drug-drug-interaction.git
+\end{lstlisting}
+
+Create three virtual machines (VMs) usingthe futuresystems/ubuntu-14.04 image, and associate three floating IP addresses with those VMs. A script is provided to help with the creation of the servers, named \lstinline|drug-drug-interaction/SetupResources/createServer.sh|. This script requires three available floating IP address. If using the script, replace all the VM names with your own username and id number, replace the key name with your ssh key's name, and replace the floating-IP addresses with your floating IP addresses. Run the script to create the VMs and associate the floating IP addresses.
+
+In the \lstinline|drug-drug-interaction/SetupResources| folder of the git repo, create a file called pword.txt, which contains the password to the ssh key used to create the VMs. This is read by the setup script to connect to the VMs. Also edit the file \lstinline|configServers.py| to include the names, private ip addresses, and public ip addresses of your VMs. The data associated with a particular VM should appear in the same location in each list. The first VM is particularly important, as it will contain the Hadoop Namenode, all managers, and analysis code. In the rest of this procedure the VMs will be referred to as hadoop1, hadoop2, and hadoop3 in the order they are entered into \lstinline|configServers.py|
+
+\subsection{Install Software}
+
+Once your VMs are ready, make sure you are in the \lstinline|drug-drug-interaction/SetupResources| folder. Start a python shell (tested for python 2.7.9). Issue the following commands in order:
+\begin{lstlisting}
+>from deploy_servers import *
+>#Connect to the VMs and establish a session
+>establishConnections()
+>#Setup the VMs to allow communication with each other
+>connectHosts()
+>#Install Chef to help with Hadoop setup
+>installChef()
+>#Move necessary files and install Hadoop
+>moveFilesAndSetupHadoop()
+>#Install Zookeeper
+>setupZookeeper()
+>#Install HBase
+>setupHBase()
+>#Install Pig on the first server
+>setupPig()
+\end{lstlisting}
+
+Note that installation will take some time and many messages will be printed. I find it is helpful to have a second ssh terminal open to the first VM to check on progress. Some particular things to watch for: \lstinline|installChef()| may return before the \lstinline|chef-repo| is fully set up. Either wait or try calling \lstinline|installChef()| again before calling \lstinline|moveFilesAndSetupHadoop()|. Often if something goes wrong during a step it can be fixed by calling the function again (although this is not necessarily the cleanest way to fix the problem). If the python shell needs to be terminated, the process can pick up where it left off by first calling \lstinline|establishConnections()| and then the next step of the process. To see if each step is successful the following should be true. After \lstinline|connectHosts()|, the root user should be able to ssh into \lstinline|hadoop1|, \lstinline|hadoop2|, or \lstinline|hadoop3| from any of the machines. After \lstinline|installChef()|, a \lstinline|chef-repo| folder with full permissions should be located in \lstinline|/home/ubuntu|. After \lstinline|moveFilesAndSetupHadoop()| the services (run \lstinline|\$jps|) \lstinline|Namenode|, \lstinline|NodeManager|, and \lstinline|ResourceManager| should be running on the first VM, and the service \lstinline|DataNode| should be running on the second and third. After \lstinline|setupZookeeper()| the server \lstinline|QuorumPeerMain| should be running on every VM. After \lstinline|setupHBase()| the service \lstinline|HMaster| should be running on \lstinline|hadoop1| and \lstinline|HRegionServer| on all VMs. The function \lstinline|setupPig()| finishes quickly, but the actual download and installation on the VM takes longer; it is done when a folder called Pig exists and the grunt shell can be accessed by calling \lstinline|~/home/ubuntu/pig/bin/pig|.
+
+In my experience errors are most likely occur during the installation of HBase. I think this is due to the movement of files between india (or OpenStack server) and the VMs. Running \lstinline|setupHBase()| a second time often fixes this problem.
+
+\subsection{Collect Data}
+
+
+On \lstinline|hadoop1|, install git with \lstinline|$apt-get install git| and clone the drug-drug-interaction github repository as done for india or the OpenStack server used to setup the VMs. In the \lstinline|GetTweets/conf| folder is a blank configuration file named \lstinline|twitterConnectBlank.yml| you will need to connect to Twitter. Rename the file \lstinline|twitterConnect.yml| and enter your Twitter API credentials (you can apply for free here: https://apps.twitter.com/), or I can provide my twitter app credentials for the purpose of evaluation.
+
+Source the \lstinline|/home/ubuntu/.bash_profile| file. Run the hbase shell to create the table for the twitter data:
+\begin{lstlisting}
+$/home/ubuntu/hbase/bin/hbase shell|
+>create 'tweets', 'user_id', 'drug', 'symptom', 'creation_ts', 'tweet_text'
+>quit
+\end{lstlisting}
+
+To collect the tweets we use an supervised executable jar located in GetTweets. A built jar is provided for convenience. The jar can be built with dependencies from source using Maven and java 1.6 (netbeans project files are included) and move the jar to the \lstinline|GetTweets| folder and name the jar \lstinline|GetTweets-1.0-SNAPSHOT-jar-with-dependencies.jar|.
+
+Create a new window in a tmux session. In the \lstinline|drug-drug-interaction| folder run:
+\begin{lstlisting}
+$supervise GetTweets
+\end{lstlisting} 
+You should see messages indicating the IDs of the tweets being collected. Allow this to run for some time. You can exit the tmux session but don't close the SSH session. For reasons I haven't been able to determine, tweet collection stops about an hour after the ssh session is closed. Data collection may take some time.
+
+\subsection{Analyze Data}
+
+After tweets have been collecting for a while, run the analysis with Pig to count the number of users that have mentioned the drugs and symptoms in the dictionaries, also counting the number of users that have mentioned a drug and a symptom, two drugs, and two drugs and a symptom. As \lstinline|root| user on \lstinline|hadoop1|, run \lstinline|$source /home/ubuntu/.bash_profile|. In \lstinline|drug-drug-interaction/GetTweets| run the pig script wordCounts.pig with \lstinline|/home/ubuntu/pig/bin/pig wordCounts.pig|. This should exit without any failures. Once the pig script is finished, the results reside on the hdfs, collect them to a local folder and rename them to be more convenient by calling \lstinline|./getResults.sh|. The \lstinline|results| folder will now contain the counts and co-occurence counts of users mentioning drugs and symptoms as a series of csv files.
+
+The ipython notebook \lstinline|AssociationRules.ipynb| contains code for calculating measures from association rule learning for the user counts, in particular producing rules for the association between sets of co-occuring drug-symptom combos. Example results for over one million tweets and users are included.
+
+\section{Results}
+
+Over the course of three days I collected 1,467,848 tweets from 1,010,667 users that mentioned a drug or symptoms in one of the dictionaries. As seen in Figure \ref{DrugAndSymptomCounts} most drugs and symptoms are rarely mentioned, although a few are mentioned very often. Similarly, as seen in \ref{CoCounts} co-occurring (in the same User's tweets) drug and symptoms mentions similarly are rare with a few exceptions.
+
+\begin{figure}
+\includegraphics[width=\textwidth/2]{figures/DrugCount.pdf}
+\includegraphics[width=\textwidth/2]{figures/SymptomCount.pdf}
+\label{DrugAndSymptomCounts}
+\caption{Frequency of Users Mentioning Drugs and Symptoms}
+\end{figure}
+
+\begin{figure}
+\includegraphics[width=.3\textwidth]{figures/coDrugCount.pdf}
+\includegraphics[width=.3\textwidth]{figures/coDrugSymptomCount.pdf}
+\includegraphics[width=.3\textwidth]{figures/coCoDrugSymptomCount.pdf}
+\label{CoCounts}
+\caption{Frequency of Users (Left to Right): Mentioning two Drugs, mentioning a drug and a symptom, and mentioning two drugs and a Symptom}
+\end{figure}
+
+The top ten most frequently mentioned drugs, symptoms, and combinations are shown in Tables \ref{TabDrugCount}, \ref{TabSymptomCount}, \ref{TabcoDrugCount}, \ref{TabcoDrugSymptomCount}, and \ref{TabcoCoDrugSymptomCount}. The drugs most frequently mentioned are not very surprising. They include popular over-the-counter pain relievers, more powerful pain relievers, as well as cocaine, a well-known illegal drug, and dopamine, an important neurotransmitter. The most mentioned drug, however, is iron, which may refer to objects made out of the metal rather than the supplement. The high occurrence of acid is a mistake in the analysis. The tokenizer broke multi-word drugs into separate drugs during the analysis, like folic acid, salicyclic acid, and zoledronic acid, a problem which will need to be corrected in future versions.
+
+It is more difficult to determine the relevance of the most menioned symptoms to disease or drugs. The most mentioned symptom is "pain" which is included in a lot of emotional or lyrical tweets, and doesn't necessarily refer to physical pain. Similarly weakness, burning, and mania, among others may not be medically relevant uses of the term. Consider the maxim, "pain is weakness leaving the body", commonly used to encourage exercise, which might include mention of "iron", commonly used in gym equipment and brand names.
+
+The problem of tokenizing by white space is clearly seen in the top drug-drug combinations. However, we also see glucagon, milrinone, and dobutamine occurring together, as well as pain relievers co-occurring. Most of the drug symptom combinations are directly between the drug and a symptom it treats, beside the many symptoms corresponding to iron that I believe are mostly about exercise. 
+
+The drug-drug-symptom interactions include more examples of multi-word drugs and the symptoms they treat, like zoledronic acid reducing the likelihood of fractures and salicyclic acid used to treat acne. The occurrences of dobutaminee, milrinone, glucogon, and hypotension are due to retweets of LearnTheHeart.com's tweet about reversing the symptoms of a Beta-blocker overdose with the drugs.
+
+\begin{table}
+\begin{tabular}{lr}
+\hline
+drug & count \\
+\hline
+iron & 1939\\
+nicotine & 1157\\
+paracetamol & 803\\
+caffeine & 674\\
+morphine & 412\\
+ibuprofen & 412\\
+aspirin & 335\\
+cocaine & 217\\
+acid & 144\\
+dopamine & 101\\
+\hline
+\end{tabular}
+\label{TabDrugCount}
+\caption{Top Mentioned Drugs}
+\end{table}
+
+\begin{table}
+\begin{tabular}{lr}
+\hline
+symptom & count \\
+\hline
+pain & 337707\\
+headache & 81557\\
+anxiety & 78568\\
+burning & 65802\\
+depression & 65323\\
+weakness & 56353\\
+nightmare & 53246\\
+mania & 39464\\
+fever & 36378\\
+stroke & 28410\\
+\hline
+\end{tabular}
+\label{TabSymptomCount}
+\caption{Top Mentioned Symptoms}
+\end{table}
+
+\begin{table}
+\begin{tabular}{lr}
+\hline
+drug-drug & count \\
+\hline
+(acid,zoledronic) & 81\\
+(acid,salicylic) & 30\\
+(oil,peppermint) & 25\\
+(benzoyl,peroxide) & 25\\
+(ketamine,morphine) & 19\\
+(acid,folic) & 18\\
+(dobutamine,milrinone) & 14\\
+(ibuprofen,paracetamol) & 14\\
+(glucagon,milrinone) & 14\\
+(morphine,nortriptyline) & 14\\
+(acid,mefenamic) & 14\\
+(dobutamine,glucagon) & 14\\
+\hline
+\end{tabular}
+\label{TabcoDrugCount}
+\caption{Top Mentioned Drug Combinations}
+\end{table}
+
+\begin{table}
+\begin{tabular}{lr}
+\hline
+\hline
+drug-symptom & count \\
+(nicotine,pain) & 1069\\
+(paracetamol,pain) & 692\\
+(iron,mania) & 622\\
+(caffeine,headache) & 436\\
+(morphine,pain) & 401\\
+(iron,pain) & 289\\
+(aspirin,headache) & 249\\
+(ibuprofen,pain) & 211\\
+(iron,burning) & 171\\
+(iron,weakness) & 148\\
+\hline
+\end{tabular}
+\label{TabcoDrugSymptomCount}
+\caption{Top Mentioned-Drug Symptom Combinations}
+\end{table}
+
+\begin{table}
+\begin{tabular}{lr}
+\hline
+drug-drug-symptom & count \\
+\hline
+(acid,zoledronic,fractures) & 81\\
+(acid,salicylic,acne) & 27\\
+(benzoyl,peroxide,acne) & 24\\
+(ketamine,morphine,pain) & 19\\
+(oil,peppermint,headache) & 17\\
+(acid,folic,stroke) & 17\\
+(glucagon,milrinone,hypotension) & 14\\
+(dobutamine,milrinone,hypotension) & 14\\
+(morphine,nortriptyline,pain) & 14\\
+(dobutamine,glucagon,hypotension) & 14\\
+(acid,mefenamic,pain) & 14\\
+\hline
+\end{tabular}
+\label{TabcoCoDrugSymptomCount}
+\caption{Top Mentioned Drug-Drug-Symptom Combinations}
+\end{table}
+%\pagebreak
+%\section{Appendix A: Drug Dictionary}
+%\lstinputlisting{GetTweets/dictionaries/alldrugs.json}
+%\pagebreak
+%\section{Appendix B: Symptom Dictionary}
+%\lstinputlisting{GetTweets/dictionaries/symptoms.json}
+        
+\end{document}
