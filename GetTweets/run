@@ -1,2 +1,2 @@
 #!/usr/bin/env sh
-java -jar GetTweets-1.0-SNAPSHOT-jar-with-dependencies start
+java -jar GetTweets-1.0-SNAPSHOT-jar-with-dependencies.jar start

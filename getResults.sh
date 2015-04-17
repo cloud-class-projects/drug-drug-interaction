@@ -1,4 +1,4 @@
-declare -a counts=("tweetCount" "DrugCount" "SymptomCount" "coDrugCount" "coDrugSymptomCount" "coCoDrugSymptomCount")
+declare -a counts=("tweetCount" "userCount" "DrugCount" "SymptomCount" "coDrugCount" "coDrugSymptomCount" "coCoDrugSymptomCount")
 for folder in "${counts[@]}"
 do
     echo "Getting $folder"
