@@ -211,6 +211,7 @@ def setupZookeeper():
     print(chans[0].recv(10e6))
     for chan in chans:
         chan.send('tmux \n')
+        chan.send('cd /home/ubuntu \n')
         time.sleep(10)
         chan.send('supervise zookeeper & \n')
         chan.send('tmux detach \n')
@@ -257,13 +258,14 @@ def setupHBase():
         sf.put('hbase-env.sh', 'hbase-env.sh')
         sf.put('hbase-site.xml', 'hbase-site.xml')
         sf.put('regionservers', 'regionservers')
+    time.sleep(20)
     for chan in chans[:]:
         chan.send('mv /home/ubuntu/zoo.cfg /home/ubuntu/hbase/conf/zoo.cfg \n')
         chan.send('mv /home/ubuntu/hbase-env.sh /home/ubuntu/hbase/conf/hbase-env.sh \n')
         chan.send('mv /home/ubuntu/hbase-site.xml /home/ubuntu/hbase/conf/hbase-site.xml \n')
         chan.send('mv /home/ubuntu/regionservers /home/ubuntu/hbase/conf/regionservers \n')
         chan.send('y \n y \n')
-
+    
     chans[0].send('./bin/hbase-daemon.sh --config /home/ubuntu/hbase/conf start master\n')
     for chan in chans:
         chan.send('./bin/hbase-daemon.sh --config /home/ubuntu/hbase/conf start regionserver\n')
