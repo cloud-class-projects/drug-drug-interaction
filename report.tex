@@ -18,7 +18,24 @@
 \setlength{\bibsep}{5pt}
 \usepackage{listings}
 
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true}
+
+\title{A Big Data System for Finding Reports of Drug-Drug Interactions on Twitter}
+\author{Ian Wood}
 \begin{document}
+
+\maketitle
+\section{Introduction}
+
+Drug-drug interactions in patients taking many medications are a dangerous cause of morbidity~\citep{kolchinsky2013evaluation}. However, due to the very large number of possible drug combinations, not every possible drug interaction can be tested in vitro, in vivo, or in a clinical trial. We are therefore interested in whether people are already self-reporting potential drug-drug interactions on social media. Using this information, we could help guide hypotheses on likely drug-drug interactions for further study. In particular, are users reporting both the drugs they are taking and symptoms they are experiencing on Twitter? Can we find any symptoms co-occurring with combinations of drugs more often than we should expect?
+
+\subsection{System Overview}
+
+In order to detect and analyze data from Twitter we will build the following system using components from the Apache Big Data Stack of open source software. The Futuresystems Openstack service is used to deploy virtual machines as the cluster of servers for our system. Chef, the devops software, is used to help with some installation. The Apache Hadoop framework with its distributed file system and MapReduce system is a dependency of the other pieces of the system. Zookeeper is used as a coordination service. Apache HBase is a distributed NoSQL database used for data storage. Apache Pig is a high-level language used for data analysis. Python is used for installation and final analysis. Java is used for the actual data collection program.
+
+The system is organized on a cluster of three servers, although expansion to more servers should be straightforward. One server is used as a master for the rest when relevant, including the Hadoop NameNode, ResourceManager, and NodeManager, as well as the HBase HMaster. The master server also holds the Apache Pig installation for data analysis. The remaining servers run Hadoop DataNodes. All servers run an HBase HRegionServer and Zookeeper QuorumPeer.
+
+Two dictionaries are used from Lin et al.'s 2010 BICEPP paper~\citep{lin2011bicepp}, using the 857 generic drug names as well as 107 adverse effects (symptoms) from the Australian Medicines Handbook. A streaming filter is created to collect all public tweets from Twitter's public streaming API that mention any of these terms. Using the free API, up to 1000 such terms can be tracked. The user id, text, creation timestamp, and the symptoms and drugs mentioned in the tweet are saved to an HBase table. This data is later processed through Pig scripts and further ipython scripts. 
 
 \section{Installing and Running the System}
 
@@ -30,9 +47,9 @@ On india.futuresystems.org or other OpenStack server, clone the github repositor
 $git clone https://github.com/cloud-class-projects/drug-drug-interaction.git
 \end{lstlisting}
 
-Create three virtual machines (VMs) usingthe futuresystems/ubuntu-14.04 image, and associate three floating IP addresses with those VMs. A script is provided to help with the creation of the servers, named \lstinline|drug-drug-interaction/SetupResources/createServer.sh|. This script requires three available floating IP address. If using the script, replace all the VM names with your own username and id number, replace the key name with your ssh key's name, and replace the floating-IP addresses with your floating IP addresses. Run the script to create the VMs and associate the floating IP addresses.
+Create three virtual machines (VMs) using the futuresystems/ubuntu-14.04 image, and associate three floating IP addresses with those VMs. A script is provided to help with the creation of the servers, named \lstinline|drug-drug-interaction/SetupResources/createServer.sh|. This script requires three available floating IP address. If using the script, replace all the VM names with your own username and id number, replace the key name with your ssh key's name, and replace the floating-IP addresses with your floating IP addresses. Run the script to create the VMs and associate the floating IP addresses.
 
-In the \lstinline|drug-drug-interaction/SetupResources| folder of the git repo, create a file called pword.txt, which contains the password to the ssh key used to create the VMs. This is read by the setup script to connect to the VMs. Also edit the file \lstinline|configServers.py| to include the names, private ip addresses, and public ip addresses of your VMs. The data associated with a particular VM should appear in the same location in each list. The first VM is particularly important, as it will contain the Hadoop Namenode, all managers, and analysis code. In the rest of this procedure the VMs will be referred to as hadoop1, hadoop2, and hadoop3 in the order they are entered into \lstinline|configServers.py|
+In the \lstinline|drug-drug-interaction/SetupResources| folder of the git repo, create a file called pword.txt, which contains the password to the ssh key used to create the VMs. This is read by the setup script to connect to the VMs. Also edit the file \lstinline|configServers.py| to include the names, private ip addresses, and public ip addresses of your VMs. The data associated with a particular VM should appear in the same location in each list. The first VM is particularly important, as it will be the master server, containing the Hadoop Namenode, all managers, and analysis code. In the rest of this procedure the VMs will be referred to as hadoop1, hadoop2, and hadoop3 in the order they are entered into \lstinline|configServers.py|
 
 \subsection{Install Software}
 
@@ -55,9 +72,13 @@ Once your VMs are ready, make sure you are in the \lstinline|drug-drug-interacti
 >setupPig()
 \end{lstlisting}
 
-Note that installation will take some time and many messages will be printed. I find it is helpful to have a second ssh terminal open to the first VM to check on progress. Some particular things to watch for: \lstinline|installChef()| may return before the \lstinline|chef-repo| is fully set up. Either wait or try calling \lstinline|installChef()| again before calling \lstinline|moveFilesAndSetupHadoop()|. Often if something goes wrong during a step it can be fixed by calling the function again (although this is not necessarily the cleanest way to fix the problem). If the python shell needs to be terminated, the process can pick up where it left off by first calling \lstinline|establishConnections()| and then the next step of the process. To see if each step is successful the following should be true. After \lstinline|connectHosts()|, the root user should be able to ssh into \lstinline|hadoop1|, \lstinline|hadoop2|, or \lstinline|hadoop3| from any of the machines. After \lstinline|installChef()|, a \lstinline|chef-repo| folder with full permissions should be located in \lstinline|/home/ubuntu|. After \lstinline|moveFilesAndSetupHadoop()| the services (run \lstinline|\$jps|) \lstinline|Namenode|, \lstinline|NodeManager|, and \lstinline|ResourceManager| should be running on the first VM, and the service \lstinline|DataNode| should be running on the second and third. After \lstinline|setupZookeeper()| the server \lstinline|QuorumPeerMain| should be running on every VM. After \lstinline|setupHBase()| the service \lstinline|HMaster| should be running on \lstinline|hadoop1| and \lstinline|HRegionServer| on all VMs. The function \lstinline|setupPig()| finishes quickly, but the actual download and installation on the VM takes longer; it is done when a folder called Pig exists and the grunt shell can be accessed by calling \lstinline|~/home/ubuntu/pig/bin/pig|.
+Note that installation will take some time and many messages will be printed. I find it is helpful to have a second ssh terminal open to hadoop1 to check on progress. Some particular things to watch for: \lstinline|installChef()| may return before the \lstinline|chef-repo| is fully set up. Either wait or try calling \lstinline|installChef()| again before calling \lstinline|moveFilesAndSetupHadoop()|. Often if something goes wrong during a step it can be fixed by calling the function again (although this is not necessarily the cleanest way to fix the problem). If the python shell needs to be terminated, the process can pick up where it left off by first calling \lstinline|establishConnections()| and then the next step of the process. To see if each step is successful the following should be true. After \lstinline|connectHosts()|, the root user should be able to ssh into \lstinline|hadoop1|, \lstinline|hadoop2|, or \lstinline|hadoop3| from any of the machines. After \lstinline|installChef()|, a \lstinline|chef-repo| folder with full permissions should be located in \lstinline|/home/ubuntu|. After \lstinline|moveFilesAndSetupHadoop()| the services (run \lstinline|$jps|) \lstinline|Namenode|, \lstinline|NodeManager|, and \lstinline|ResourceManager| should be running on the hadoop1, and the service \lstinline|DataNode| should be running on the hadoop2 and hadoop3. After \lstinline|setupZookeeper()| the service \lstinline|QuorumPeerMain| should be running on every VM. After \lstinline|setupHBase()| the service \lstinline|HMaster| should be running on \lstinline|hadoop1| and \lstinline|HRegionServer| on all VMs. The function \lstinline|setupPig()| finishes quickly, but the actual download and installation on the VM takes longer; it is done when a folder called Pig exists and the grunt shell can be accessed by calling \lstinline|$/home/ubuntu/pig/bin/pig| after setting environment variables with \lstinline|$source /home/ubuntu/.bash_profile|.
 
-In my experience errors are most likely occur during the installation of HBase. I think this is due to the movement of files between india (or OpenStack server) and the VMs. Running \lstinline|setupHBase()| a second time often fixes this problem.
+In my experience errors are most likely occur during the installation of HBase. I think this is due to the movement of files between india (or OpenStack server) and the VMs. Running \lstinline|setupHBase()| a second time often fixes this problem. If that still does not solve the problem, ssh into hadoop1 and try to manually start HBase as root user. Run \lstinline|source /home/ubuntu/.bash_profile| to set proper environment variables. Check which services are running, both HRegionServer and HMaster should run on hadoop1. They can be started by calling
+\begin{lstlisting}
+/home/ubuntu/hbase/bin/hbase-daemon.sh --config /home/ubuntu/hbase/conf/ start $service
+\end{lstlisting}
+where \lstinline|$service| is either ``master" or ``regionserver". If you notice problems connecting to ZooKeeper in the logs, try killing the zookeeper process (run \lstinline|jps| to see its process id). Since it is supervised, it should start up again; try starting the HBase daemons after Zookeeper has restarted.
 
 \subsection{Collect Data}
 
@@ -66,53 +87,60 @@ On \lstinline|hadoop1|, install git with \lstinline|$apt-get install git| and cl
 
 Source the \lstinline|/home/ubuntu/.bash_profile| file. Run the hbase shell to create the table for the twitter data:
 \begin{lstlisting}
-$/home/ubuntu/hbase/bin/hbase shell|
+$/home/ubuntu/hbase/bin/hbase shell
 >create 'tweets', 'user_id', 'drug', 'symptom', 'creation_ts', 'tweet_text'
 >quit
 \end{lstlisting}
 
-To collect the tweets we use an supervised executable jar located in GetTweets. A built jar is provided for convenience. The jar can be built with dependencies from source using Maven and java 1.6 (netbeans project files are included) and move the jar to the \lstinline|GetTweets| folder and name the jar \lstinline|GetTweets-1.0-SNAPSHOT-jar-with-dependencies.jar|.
+To collect the tweets we supervise an executable jar located in GetTweets. A built jar is provided in the repo for convenience. If building from source, build the jar with dependencies using Maven and java 1.6 (netbeans project files are included) and move the jar to the \lstinline|GetTweets| folder and name the jar \lstinline|GetTweets-1.0-SNAPSHOT-jar-with-dependencies.jar|.
 
 Create a new window in a tmux session. In the \lstinline|drug-drug-interaction| folder run:
 \begin{lstlisting}
 $supervise GetTweets
 \end{lstlisting} 
-You should see messages indicating the IDs of the tweets being collected. Allow this to run for some time. You can exit the tmux session but don't close the SSH session. For reasons I haven't been able to determine, tweet collection stops about an hour after the ssh session is closed. Data collection may take some time.
+You should see messages indicating the IDs of the tweets being collected. Allow this to run for some time. You can detach the tmux session but don't close the SSH session. For reasons I haven't been able to determine, tweet collection stops about an hour after the ssh session is closed. 
 
 \subsection{Analyze Data}
 
-After tweets have been collecting for a while, run the analysis with Pig to count the number of users that have mentioned the drugs and symptoms in the dictionaries, also counting the number of users that have mentioned a drug and a symptom, two drugs, and two drugs and a symptom. As \lstinline|root| user on \lstinline|hadoop1|, run \lstinline|$source /home/ubuntu/.bash_profile|. In \lstinline|drug-drug-interaction/GetTweets| run the pig script wordCounts.pig with \lstinline|/home/ubuntu/pig/bin/pig wordCounts.pig|. This should exit without any failures. Once the pig script is finished, the results reside on the hdfs, collect them to a local folder and rename them to be more convenient by calling \lstinline|./getResults.sh|. The \lstinline|results| folder will now contain the counts and co-occurence counts of users mentioning drugs and symptoms as a series of csv files.
+After tweets have been collecting for a while, run the analysis with Pig to count the number of users that have mentioned the drugs and symptoms in the dictionaries, also counting the number of users that have mentioned a drug and a symptom, two drugs, and two drugs and a symptom. As \lstinline|root| user on \lstinline|hadoop1|, run \lstinline|$source /home/ubuntu/.bash_profile|. In \lstinline|drug-drug-interaction/GetTweets| run the pig script wordCounts.pig with:
+\begin{lstlisting}
+$/home/ubuntu/pig/bin/pig wordCounts.pig
+\end{lstlisting}
+This should exit without any failures. Once the pig script is finished, the results reside on the hdfs; collect them to a local folder and reorganize them to a more convenient format by calling \lstinline|$./getResults.sh|. The \lstinline|results| folder will now contain the counts and co-occurence counts of users mentioning drugs and symptoms as a series of csv files.
 
-The ipython notebook \lstinline|AssociationRules.ipynb| contains code for calculating measures from association rule learning for the user counts, in particular producing rules for the association between sets of co-occuring drug-symptom combos. Example results for over one million tweets and users are included.
+The ipython notebook \lstinline|AssociationRules.ipynb| contains code for calculating measures from association rule learning for the user counts, in particular producing rules for the association between sets of co-occuring drug-symptom combos. Example results for over one million tweets and users are included in the results folder but will be overwritten by running \lstinline|getResults.sh| and \lstinline|AssociationRules.ipynb|.
 
 \section{Results}
 
-Over the course of three days I collected 1,467,848 tweets from 1,010,667 users that mentioned a drug or symptoms in one of the dictionaries. As seen in Figure \ref{DrugAndSymptomCounts} most drugs and symptoms are rarely mentioned, although a few are mentioned very often. Similarly, as seen in \ref{CoCounts} co-occurring (in the same User's tweets) drug and symptoms mentions similarly are rare with a few exceptions.
+Over the course of three days I collected 1,467,848 tweets from 1,010,667 users that mentioned a drug or symptom in one of the dictionaries. As seen in Figure \ref{DrugAndSymptomCounts} most drugs and symptoms are rarely mentioned, although a few are mentioned very often. Similarly, as seen in Figure \ref{CoCounts} co-occurring (in the same User's tweets) drug and symptom mentions similarly are rare with a few exceptions.
 
 \begin{figure}
-\includegraphics[width=\textwidth/2]{figures/DrugCount.pdf}
-\includegraphics[width=\textwidth/2]{figures/SymptomCount.pdf}
-\label{DrugAndSymptomCounts}
-\caption{Frequency of Users Mentioning Drugs and Symptoms}
+\centering
+\includegraphics[width=.49\textwidth]{figures/DrugCount.pdf}
+\includegraphics[width=.49\textwidth]{figures/SymptomCount.pdf}
+
+\caption{\label{DrugAndSymptomCounts} Frequency of Users Mentioning Drugs and Symptoms}
 \end{figure}
 
 \begin{figure}
+\centering
 \includegraphics[width=.3\textwidth]{figures/coDrugCount.pdf}
 \includegraphics[width=.3\textwidth]{figures/coDrugSymptomCount.pdf}
 \includegraphics[width=.3\textwidth]{figures/coCoDrugSymptomCount.pdf}
-\label{CoCounts}
-\caption{Frequency of Users (Left to Right): Mentioning two Drugs, mentioning a drug and a symptom, and mentioning two drugs and a Symptom}
+
+\caption{\label{CoCounts} Frequency of Users (Left to Right): Mentioning two Drugs, mentioning a drug and a symptom, and mentioning two drugs and a Symptom}
 \end{figure}
 
-The top ten most frequently mentioned drugs, symptoms, and combinations are shown in Tables \ref{TabDrugCount}, \ref{TabSymptomCount}, \ref{TabcoDrugCount}, \ref{TabcoDrugSymptomCount}, and \ref{TabcoCoDrugSymptomCount}. The drugs most frequently mentioned are not very surprising. They include popular over-the-counter pain relievers, more powerful pain relievers, as well as cocaine, a well-known illegal drug, and dopamine, an important neurotransmitter. The most mentioned drug, however, is iron, which may refer to objects made out of the metal rather than the supplement. The high occurrence of acid is a mistake in the analysis. The tokenizer broke multi-word drugs into separate drugs during the analysis, like folic acid, salicyclic acid, and zoledronic acid, a problem which will need to be corrected in future versions.
+The top ten most frequently mentioned drugs, symptoms, and combinations are shown in Table \ref{TabDrugCount}, Table \ref{TabSymptomCount}, Table \ref{TabcoDrugCount}, Table \ref{TabcoDrugSymptomCount}, and Table \ref{TabcoCoDrugSymptomCount}. The drugs most frequently mentioned are not very surprising. They include popular over-the-counter pain relievers; more powerful pain relievers; as well as cocaine, a well-known illegal drug; and dopamine, an important neurotransmitter. The most mentioned drug, however, is iron, which may refer to objects made out of the metal rather than the supplement. The high occurrence of acid is a mistake in the analysis. The tokenizer broke multi-word drugs into separate drugs during the analysis, like folic acid, salicyclic acid, and zoledronic acid, a problem which will need to be corrected in future versions.
 
-It is more difficult to determine the relevance of the most menioned symptoms to disease or drugs. The most mentioned symptom is "pain" which is included in a lot of emotional or lyrical tweets, and doesn't necessarily refer to physical pain. Similarly weakness, burning, and mania, among others may not be medically relevant uses of the term. Consider the maxim, "pain is weakness leaving the body", commonly used to encourage exercise, which might include mention of "iron", commonly used in gym equipment and brand names.
+It is more difficult to determine the relevance of the most mentioned symptoms to disease or drugs. The most mentioned symptom is ``pain" which is included in many emotional or lyrical tweets, and doesn't necessarily refer to physical pain. Similarly weakness, burning, and mania, among others may not be medically relevant uses of the term. Consider the maxim, ``pain is weakness leaving the body", commonly used to encourage exercise, which might occur alongside mention of ``iron", commonly used in gym equipment and brand names.
 
-The problem of tokenizing by white space is clearly seen in the top drug-drug combinations. However, we also see glucagon, milrinone, and dobutamine occurring together, as well as pain relievers co-occurring. Most of the drug symptom combinations are directly between the drug and a symptom it treats, beside the many symptoms corresponding to iron that I believe are mostly about exercise. 
+The problem of tokenizing by white space is clearly seen in the top drug-drug combinations, shown in Table \ref{TabcoDrugCount}. However, we also see glucagon, milrinone, and dobutamine occurring together, as well as pain relievers co-occurring. Most of the drug-symptom combinations in Table \ref{TabcoCoDrugSymptomCount} are directly between the drug and a symptom it treats, besides the many symptoms corresponding to iron that I believe are mostly about exercise. 
 
-The drug-drug-symptom interactions include more examples of multi-word drugs and the symptoms they treat, like zoledronic acid reducing the likelihood of fractures and salicyclic acid used to treat acne. The occurrences of dobutaminee, milrinone, glucogon, and hypotension are due to retweets of LearnTheHeart.com's tweet about reversing the symptoms of a Beta-blocker overdose with the drugs.
+The drug-drug-symptom combinations in Table \ref{TabcoCoDrugSymptomCount} include more examples of multi-word drugs and the symptoms they treat, like zoledronic acid reducing the likelihood of fractures and salicyclic acid used to treat acne. The co-occurrences of dobutamine, milrinone, glucagon, and hypotension are due to retweets of a user named LearnTheHeart.com's tweet about reversing the symptoms of a beta-blocker overdose with the drugs.
 
 \begin{table}
+\centering
 \begin{tabular}{lr}
 \hline
 drug & count \\
@@ -129,11 +157,11 @@ acid & 144\\
 dopamine & 101\\
 \hline
 \end{tabular}
-\label{TabDrugCount}
-\caption{Top Mentioned Drugs}
+\caption{\label{TabDrugCount} Top Mentioned Drugs}
 \end{table}
 
 \begin{table}
+\centering
 \begin{tabular}{lr}
 \hline
 symptom & count \\
@@ -150,11 +178,11 @@ fever & 36378\\
 stroke & 28410\\
 \hline
 \end{tabular}
-\label{TabSymptomCount}
-\caption{Top Mentioned Symptoms}
+\caption{\label{TabSymptomCount} Top Mentioned Symptoms}
 \end{table}
 
 \begin{table}
+\centering
 \begin{tabular}{lr}
 \hline
 drug-drug & count \\
@@ -173,11 +201,11 @@ drug-drug & count \\
 (dobutamine,glucagon) & 14\\
 \hline
 \end{tabular}
-\label{TabcoDrugCount}
-\caption{Top Mentioned Drug Combinations}
+\caption{\label{TabcoDrugCount} Top Mentioned Drug Combinations}
 \end{table}
 
 \begin{table}
+\centering
 \begin{tabular}{lr}
 \hline
 \hline
@@ -194,11 +222,11 @@ drug-symptom & count \\
 (iron,weakness) & 148\\
 \hline
 \end{tabular}
-\label{TabcoDrugSymptomCount}
-\caption{Top Mentioned-Drug Symptom Combinations}
+\caption{\label{TabcoDrugSymptomCount} Top Mentioned-Drug Symptom Combinations}
 \end{table}
 
 \begin{table}
+\centering
 \begin{tabular}{lr}
 \hline
 drug-drug-symptom & count \\
@@ -216,14 +244,73 @@ drug-drug-symptom & count \\
 (acid,mefenamic,pain) & 14\\
 \hline
 \end{tabular}
-\label{TabcoCoDrugSymptomCount}
-\caption{Top Mentioned Drug-Drug-Symptom Combinations}
+\caption{\label{TabcoCoDrugSymptomCount} Top Mentioned Drug-Drug-Symptom Combinations}
 \end{table}
+
+In an attempt to find symptoms that appear more often with two drugs than would be expected if their occurrence with each drug individually was independent, we can turn to measures from association rule learning. In Table \ref{AssocRules} the support, confidence, and lift (interest) of associations between drug-symptom combinations are reported. For a rule, $(X \Rightarrow Y)$, between sets $X$ and $Y$: \textit{support(X)} is defined the proportion of users in the dataset that mention an element of $X$, the support in the table is $support(X \cup Y)$; \textit{confidence($X \Rightarrow Y$)} $=support(X \cup Y)/support(X)$, the proportion of instances of $X$ that include elements of $Y$; and \textit{lift($X \Rightarrow Y$)} $=support(X \cup Y)/(support(X) \times support(Y))$, or the ratio of observed occurrences to those expected if $X$ and $Y$ were independent~\citep{tan2004selecting}.
+
+The top 20 rules by lift are included in the table, although because many rules have the same lift, this ends up being an arbitrary subset of the rules with the same lift. If ordered by support, by definition, the top rules would be between the elements of the most frequent drug-drug-symptom combinations. By focusing on lift we try to see combinations of drugs and symptoms that appear together more often than we would expect from the combination of each drug and symptom individually. Unfortunately, with very low support, these are largely due to a single user name MedEd101, a PharmD trying to spread knowledge about drugs and symptoms, so many drugs and symptoms are mentioned by the same user who takes none of them. The \textit{(influenza, rash)$\Rightarrow$(sulfate, rash)} rule is an instance of a split drug name, namely the influenza vaccine and the rash it can cause.
+
+\begin{table}
+\centering
+\begin{tabular}{lrrr}
+\hline
+Association Rule & Support & Confidence & Lift \\
+\hline
+(influenza,rash)$\Rightarrow$(sulfate,rash) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,seizure)$\Rightarrow$(amiodarone,seizure) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,stroke)$\Rightarrow$(metoprolol,stroke) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,seizure)$\Rightarrow$(metoprolol,seizure) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,hypertension)$\Rightarrow$(metoprolol,hypertension) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,stroke)$\Rightarrow$(hydralazine,stroke) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,seizure)$\Rightarrow$(hydralazine,seizure) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,tachycardia)$\Rightarrow$(hydralazine,tachycardia) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,hypertension)$\Rightarrow$(hydralazine,hypertension) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,stroke)$\Rightarrow$(dipyridamole,stroke) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,seizure)$\Rightarrow$(dipyridamole,seizure) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,tachycardia)$\Rightarrow$(dipyridamole,tachycardia) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,hypertension)$\Rightarrow$(dipyridamole,hypertension) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,stroke)$\Rightarrow$(theophylline,stroke) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,seizure)$\Rightarrow$(theophylline,seizure) & 9.894e-07 & 1.0 & 1.011e+06\\
+(alprazolam,hypertension)$\Rightarrow$(theophylline,hypertension) & 9.894e-07 & 1.0 & 1.011e+06\\
+(amantadine,confusion)$\Rightarrow$(bromocriptine,confusion) & 9.894e-07 & 1.0 & 1.011e+06\\
+(amiodarone,sedation)$\Rightarrow$(aspirin,sedation) & 9.894e-07 & 1.0 & 1.011e+06\\
+(amiodarone,dizziness)$\Rightarrow$(aspirin,dizziness) & 9.894e-07 & 1.0 & 1.011e+06\\
+(amiodarone,hypertension)$\Rightarrow$(aspirin,hypertension) & 9.894e-07 & 1.0 & 1.011e+06\\
+\hline
+\end{tabular}
+\caption{\label{AssocRules} Association Rules, including support for drug-drug-symptom combination, confidence of the rule, and the lift of the rule}
+\end{table}
+
+\section{Discussion}
+
+We find that many users do report the drugs they are taking and the symptoms they are experiencing on Twitter. However, we have so far not found convincing evidence of symptoms occurring more often with drug combinations than we would expect. While this project is a start to a large scale analysis of drug and symptom mentions on Twitter, there are a number of issues that must be addressed. The installation code is very complicated and should be improved to allow others to deploy these same tools, or even allow an individual researcher to install updates to these systems. The analysis must be improved in order to find relevant symptoms caused by drug-drug interactions. I detail these issues in the subsections \textit{System Issues} and \textit{Analysis Issues} respectively.
+
+\subsection{System Issues}
+The installation of the system could be greatly improved. In particular, the installation relies on hard-coded waiting times that are sometimes inadequate. A more sophisticated waiting method is also used, wherein the installation script waits for printed responses after long downloads on the VMs, but this could also potentially fail, since no corrections are included for cases in which the ``done" message is split between receiving buffers. In practice, I have never encountered this happening, but the potential for the program to enter an infinite loop exists.
+
+The installation process is also highly dependent upon versioning, with versions coded into download links. The current process does not use the latest version of HBase, 1.0.0, but instead version (98.11). This is because the new version requires jdk1.7 while the hadoop and pig installations expect jdk1.6. In addition some of the ports seems to have changed in the newest version, such that it is more difficult to run a regionserver and master on the same VM. HBase 1.0.0 can be used, but requires manual tuning and is not supported by the installation script. 
+
+I also was unable to get the process working with the latest versions of cloudmesh (on the juno OpenStack system). Functions for VM creation and automatic IP address collection and floating-IP address association using cloudmesh are included in \lstinline|cloudmeshFunctions.py|, and can be used if cloudmesh is installed. The installation relies on open ports for a local network, using only local IP addresses. To use servers on different networks over public IP addresses security groups must be created with all relevant ports open for Hadoop, Hbase, Zookeeper, and Pig. I have not successfully installed the whole system with public IP addresses due, I believe, to port issues.
+
+In addition, the data is not split over the regionservers. As the data grows, it should be split or replicated periodically so that all data must not be transferred to each server during the Pig analysis.
+
+\subsection{Analysis Issues}
+The analysis is limited in a number of ways. First, white spaces must be properly replaced with underscores or other appropriate escaping method in order not to split apart multi-word drug names during tokenizing. Retweets must also be taken into account, perhaps ignored, to avoid artificially inflating the support for drug and symptom combinations. The current method of combining all drug and symptom mentions by a user over the entire dataset should also be limited, e.g. to a rolling time window, to focus on mentions that are more likely to be related to each other.
+
+A more difficult problem will be to determine whether the symptom referred to is the purpose for taking the drug or a side-effect. In addition, educational users like LearnTheHeart.com, MedEd101 should be avoided in the analysis if possible. More techniques from natural language processing might be used to determine if a drug is taken for a symptom or if a user is actually taking a drug. 
+
+In addition, more data would lead to better analysis. The data reported here is a relatively small sample of the number of tweets every day. Larger dictionaries for drugs and symptoms would be useful, although tracking too many terms would run into the limit for Twitter's free API service.
+
 %\pagebreak
 %\section{Appendix A: Drug Dictionary}
 %\lstinputlisting{GetTweets/dictionaries/alldrugs.json}
 %\pagebreak
 %\section{Appendix B: Symptom Dictionary}
 %\lstinputlisting{GetTweets/dictionaries/symptoms.json}
-        
+%\pagebreak
+%\clearpage
+\bibliographystyle{APA}
+\bibliography{references}
+
 \end{document}
