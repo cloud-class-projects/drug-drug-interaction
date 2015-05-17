@@ -15,7 +15,8 @@ Create three virtual machines (VMs) using the futuresystems/ubuntu-14.04 image, 
 2.2 Install Software
 --
 Once your VMs are ready, make sure you are in the drug-drug-interaction/SetupResources folder. Start a python shell (tested for python 2.7.9). Issue the following commands in order:
-  >from deploy_servers import *
+```
+  > from deploy_servers import *
   # Connect to the VMs and establish a session
   > establishConnections ()
   # Setup the VMs to allow communication with each other
@@ -27,9 +28,11 @@ Once your VMs are ready, make sure you are in the drug-drug-interaction/SetupRes
   # Install Zookeeper
   > setupZookeeper ()
   # Install HBase
-  >setupHBase ()
+  > setupHBase ()
   # Install Pig on the first server
-  >setupPig ()
+  > setupPig ()
+```
+
 Note that installation will take some time and many messages will be printed. I find it is helpful to have a second ssh terminal open to hadoop1 to check on progress. Some particular things to watch for: installChef() may return before the chef-repo is fully set up. Either wait or try calling installChef() again before calling moveFilesAndSetupHadoop(). Often if something goes wrong during a step it can be xed by calling the function again (although this is not necessarily the cleanest way to fix the problem). If the python shell needs to be terminated, the process can pick up where it left off by first calling establishConnections() and then the next step of the process. To see if each step is successful the following should be true. After connectHosts(), the root user should be able to ssh into hadoop1, hadoop2, or hadoop3 from any of the machines. After installChef(), a chef-repo folder with full permissions should be located in /home/ubuntu. After moveFilesAndSetupHadoop() the services (run $jps) Namenode, NodeManager, and ResourceManager should be running on the hadoop1, and the service DataNode should be running on the hadoop2 and hadoop3. After setupZookeeper() the service QuorumPeerMain should be running on every VM. After setupHBase() the service HMaster should be running on hadoop1 and HRegionServer on all VMs. The function setupPig() finishes quickly, but the actual download and installation on the VM takes longer; it is done when a folder called Pig exists and the grunt shell can be accessed by calling $/home/ubuntu/pig/bin/pig after setting environment variables with $source /home/ubuntu/. bash_profile.
 
 In my experience errors are most likely occur during the installation of HBase. I think this is due to the movement of les between india (or OpenStack server) and the VMs. Running setupHBase() a second time often xes this problem. If that still does not solve the problem, ssh into hadoop1 and try to manually start HBase as root user. Run source /home/ubuntu/.bash_profile to set proper environment variables. Check which services are running, both HRegionServer and HMaster should run on hadoop1. They can be started by calling
@@ -39,9 +42,11 @@ where $service is either \master" or \regionserver". If you notice problems conn
 On hadoop1, install git with $apt-get install git and clone the drug-drug-interaction github repository as done for india or the OpenStack server used to setup the VMs. In the GetTweets/conf folder is a blank conguration le named twitterConnectBlank.yml you will need to connect to Twitter. Rename the le twitterConnect.yml and enter your Twitter API credentials (you can apply for free here: https://apps.twitter.com/), or I can provide my twitter app credentials for the purpose of evaluation.
 
 Source the /home/ubuntu/.bash_profile le. Run the hbase shell to create the table for the twitter data:
+```
   $/home/ubuntu/hbase/bin/hbase shell
   >create 'tweets ', 'user_id ', 'drug ', 'symptom ', 'creation_ts ', 'tweet_text '
   >quit
+```
 To collect the tweets we supervise an executable jar located in GetTweets. A built jar is provided in the repo for convenience. If building from source, build the jar with dependencies using Maven and java 1.6 (netbeans project les are included) and move the jar to the GetTweets folder and name the jar GetTweets-1.0-SNAPSHOT-jar-with-dependencies.jar.
 
 Create a new window in a tmux session. In the drug-drug-interaction folder run:
