@@ -39,7 +39,7 @@ Two dictionaries are used from Lin et al.'s 2010 BICEPP paper~\citep{lin2011bice
 
 \section{Installing and Running the System}
 
-To install the drug-drug interaction symptom detector follow the steps below.
+To install the drug-drug interaction symptom detector follow the steps below. The full source code is available here: https://github.com/cloud-class-projects/drug-drug-interaction
 
 \subsection{Initialize VMs} 
 On india.futuresystems.org or other OpenStack server, clone the github repository: \
@@ -291,7 +291,7 @@ The installation of the system could be greatly improved. In particular, the ins
 
 The installation process is also highly dependent upon versioning, with versions coded into download links. The current process does not use the latest version of HBase, 1.0.0, but instead version (98.11). This is because the new version requires jdk1.7 while the hadoop and pig installations expect jdk1.6. In addition some of the ports seems to have changed in the newest version, such that it is more difficult to run a regionserver and master on the same VM. HBase 1.0.0 can be used, but requires manual tuning and is not supported by the installation script. 
 
-I also was unable to get the process working with the latest versions of cloudmesh (on the juno OpenStack system). Functions for VM creation and automatic IP address collection and floating-IP address association using cloudmesh are included in \lstinline|cloudmeshFunctions.py|, and can be used if cloudmesh is installed. The installation relies on open ports for a local network, using only local IP addresses. To use servers on different networks over public IP addresses security groups must be created with all relevant ports open for Hadoop, Hbase, Zookeeper, and Pig. I have not successfully installed the whole system with public IP addresses due, I believe, to port issues.
+Due to changes in the python community as part of pip, urllib2, and other packages I was not able to utilize cloudmesh at the time I started my implementation. I confirmed with the team that the issues are not related to cloudmesh, but are in fact a temporary issue with the python community libraries that were used in cloudmesh. After consultation with the cloudmesh team I got confirmation from them that these issues have since be removed and the utilization of cloudmesh would have simplified the deployment issues while leveraging (a) the cloudmesh virtual cluster (b) the deployment of hadoop and other tools through the cloudmesh launcher. Functions for VM creation and automatic IP address collection and floating-IP address association using cloudmesh are included in \lstinline|cloudmeshFunctions.py|, and can be used if cloudmesh is installed. The installation relies on open ports for a local network, using only local IP addresses. To use servers on different networks over public IP addresses security groups must be created with all relevant ports open for Hadoop, Hbase, Zookeeper, and Pig. I have not successfully installed the whole system with public IP addresses due, I believe, to port issues.
 
 In addition, the data is not split over the regionservers. As the data grows, it should be split or replicated periodically so that all data must not be transferred to each server during the Pig analysis.
 
